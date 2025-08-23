@@ -1,0 +1,347 @@
+.container
+  min-height: 100vh
+  background-color: var(--bg-color)
+
+// 导航栏
+.navbar
+  background-color: var(--bg-white)
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1)
+  position: sticky
+  top: 0
+  z-index: 100
+
+.navContent
+  max-width: 1200px
+  margin: 0 auto
+  padding: 0 24px
+  height: 64px
+  display: flex
+  align-items: center
+  justify-content: space-between
+
+.logo
+  font-size: 24px
+  font-weight: 700
+  color: var(--primary-color)
+
+.navRight
+  display: flex
+  align-items: center
+  gap: 24px
+
+.addButton
+  background-color: var(--primary-color)
+  color: white
+  padding: 8px 16px
+  border-radius: 8px
+  display: flex
+  align-items: center
+  gap: 8px
+  font-weight: 500
+  transition: background-color 0.2s
+  
+  &:hover
+    background-color: var(--primary-hover)
+
+.navLink
+  color: var(--text-gray)
+  font-weight: 500
+  transition: color 0.2s
+  
+  &:hover
+    color: var(--text-color)
+
+// 主内容
+.main
+  max-width: 1200px
+  margin: 0 auto
+  padding: 32px 24px
+
+// 统计卡片 - 超紧凑设计
+.statsGrid
+  display: grid
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr))  // 进一步减小最小宽度
+  gap: 8px  // 减少间距
+  margin-bottom: 16px  // 减少下边距
+
+.statCard
+  background: var(--bg-white)
+  padding: 8px 12px  // 大幅减少padding
+  border-radius: 6px  // 减小圆角
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03)  // 进一步减轻阴影
+  display: flex
+  align-items: center
+  gap: 8px  // 减少间距
+  transition: transform 0.2s, box-shadow 0.2s
+  
+  &:hover
+    transform: translateY(-1px)
+    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.08)
+
+.statIcon
+  width: 28px  // 大幅减小图标容器
+  height: 28px
+  border-radius: 6px
+  display: flex
+  align-items: center
+  justify-content: center
+
+.statInfo
+  flex: 1
+
+.statLabel
+  color: var(--text-gray)
+  font-size: 11px  // 进一步减小字体
+  margin-bottom: 1px  // 减少间距
+  line-height: 1.2
+
+.statValue
+  font-size: 14px  // 大幅减小数字字体
+  font-weight: 600  // 稍微减轻字重
+  color: var(--text-color)
+  line-height: 1.2
+
+// 复习区域
+.reviewSection
+  background: var(--bg-white)
+  border-radius: 12px
+  padding: 24px
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1)
+
+.sectionHeader
+  display: flex
+  align-items: center
+  justify-content: space-between
+  margin-bottom: 24px
+  padding-bottom: 16px
+  border-bottom: 2px solid var(--border-color)
+
+.sectionTitle
+  display: flex
+  align-items: center
+  gap: 12px
+  font-size: 20px
+  font-weight: 600
+  color: var(--text-color)
+  
+  svg
+    color: var(--primary-color)
+
+.badge
+  background-color: var(--primary-color)
+  color: white
+  padding: 4px 12px
+  border-radius: 20px
+  font-size: 14px
+  font-weight: 500
+
+// 复习列表
+.reviewList
+  display: flex
+  flex-direction: column
+  gap: 12px  // 减少间距
+
+// 重新设计的卡片布局
+.reviewCard
+  border: 1px solid var(--border-color)
+  border-radius: 8px
+  transition: all 0.3s ease
+  background-color: white
+  
+  &:hover
+    border-color: var(--primary-color)
+    background-color: #FAFBFF
+    
+  &.expanded
+    background-color: #FAFBFF
+    border-color: var(--primary-color)
+
+// 卡片主要内容区域
+.cardMain
+  padding: 16px 20px  // 减少padding让卡片更紧凑
+  display: flex
+  align-items: center
+  justify-content: space-between
+
+.problemInfo
+  display: flex
+  align-items: center
+  gap: 16px
+  flex: 1
+
+.problemNumber
+  font-size: 16px
+  font-weight: 600
+  color: var(--text-gray)
+  min-width: 50px
+
+.problemDetails
+  flex: 1
+
+.problemTitle
+  font-size: 15px
+  font-weight: 600
+  color: var(--text-color)
+  margin-bottom: 4px
+  
+  a
+    color: var(--primary-color)
+    text-decoration: none
+    
+    &:hover
+      text-decoration: underline
+
+.problemMeta
+  display: flex
+  align-items: center
+  gap: 12px
+
+.reviewInfo
+  color: var(--text-gray)
+  font-size: 13px
+
+.cardActions
+  display: flex
+  gap: 8px
+  flex-shrink: 0
+
+.noteButton, .completeButton
+  padding: 6px 12px  // 减少按钮大小
+  border-radius: 6px
+  font-size: 13px
+  font-weight: 500
+  display: flex
+  align-items: center
+  gap: 6px
+  transition: all 0.2s
+
+.noteButton
+  background-color: #F3F4F6
+  color: var(--text-gray)
+  
+  &:hover
+    background-color: #E5E7EB
+    color: var(--text-color)
+
+.completeButton
+  background-color: var(--success-color)
+  color: white
+  
+  &:hover
+    background-color: #059669
+
+// 笔记预览区域
+.notePreview
+  border-top: 1px solid var(--border-color)
+  padding: 16px 20px
+  animation: slideDown 0.3s ease-out
+
+.noteContent
+  background-color: #F8F9FA
+  border-radius: 6px
+  padding: 12px
+  border-left: 3px solid var(--primary-color)
+
+.noteText
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace
+  font-size: 13px
+  line-height: 1.5
+  color: var(--text-color)
+  white-space: pre-wrap
+  word-wrap: break-word
+  margin: 0
+
+.noNotes
+  color: var(--text-gray)
+  font-style: italic
+  margin: 0
+  font-size: 13px
+// 在现有样式基础上添加已完成状态的样式
+
+// 已完成的卡片样式
+.reviewCard.completed
+  opacity: 0.6
+  background-color: #F8F9FA
+  
+  &:hover
+    opacity: 0.8
+    background-color: #F1F3F4
+    border-color: #D1D5DB
+
+  .problemTitle a
+    color: var(--text-gray)
+    
+    &:hover
+      color: var(--text-color)
+
+  .problemNumber
+    color: #9CA3AF
+
+  .reviewInfo
+    color: #9CA3AF
+
+// 已完成标记
+.completedBadge
+  background-color: #D1FAE5
+  color: #065F46
+  padding: 2px 6px
+  border-radius: 4px
+  font-size: 11px
+  font-weight: 500
+  display: flex
+  align-items: center
+  gap: 2px
+
+// 已完成的笔记预览区域
+.reviewCard.completed .notePreview
+  opacity: 0.8
+
+.reviewCard.completed .noteContent
+  background-color: #F3F4F6
+  border-left-color: #9CA3AF
+
+.reviewCard.completed .noteText
+  color: var(--text-gray)
+// 在现有样式基础上添加取消标记按钮样式
+
+.uncompleteButton
+  padding: 6px 12px
+  border-radius: 6px
+  font-size: 13px
+  font-weight: 500
+  display: flex
+  align-items: center
+  gap: 6px
+  transition: all 0.2s
+  background-color: #FEF3C7
+  color: #92400E
+  border: 1px solid #FCD34D
+  
+  &:hover
+    background-color: #FDE68A
+    color: #78350F
+    border-color: #F59E0B
+
+// 可选：让已完成卡片的取消按钮更明显一些
+.reviewCard.completed .uncompleteButton
+  background-color: #DBEAFE
+  color: #1E40AF
+  border-color: #93C5FD
+  
+  &:hover
+    background-color: #BFDBFE
+    color: #1E3A8A
+    border-color: #60A5FA
+
+@keyframes slideDown
+  from
+    opacity: 0
+    max-height: 0
+    padding-top: 0
+    padding-bottom: 0
+  to
+    opacity: 1
+    max-height: 300px
+    padding-top: 16px
+    padding-bottom: 16px
+
