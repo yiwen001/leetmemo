@@ -10,7 +10,7 @@ import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 // 引入Ant Design样式
 import 'antd/dist/reset.css'
-
+import { testConnection } from '@/lib/test-db'
 // 简化的Mock数据，添加笔记内容和完成状态
 const mockTodayReviews = [
   {
@@ -223,7 +223,14 @@ const handleUncompleteReview = (problemId: string) => {
 
   // 计算未完成的题目数量
   const uncompletedCount = problems.filter(p => !p.completed).length
-
+  const testDB = async () => {
+    const success = await testConnection()
+    if (success) {
+      message.success('数据库连接成功!')
+    } else {
+      message.error('数据库连接失败!')
+    }
+  }
   return (
     <div className={styles.container}>
       {/* 导航栏 */}
@@ -317,6 +324,7 @@ const handleUncompleteReview = (problemId: string) => {
         </div>
 
         {/* 今日复习列表 */}
+        <button onClick={testDB}>测试数据库连接</button>
         <div className={styles.reviewSection}>
           <div className={styles.sectionHeader}>
             <h2 className={styles.sectionTitle}>

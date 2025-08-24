@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@next-auth/prisma-adapter": "^1.0.7",
+    "@supabase/supabase-js": "^2.56.0",
     "antd": "^5.27.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.541.0",
