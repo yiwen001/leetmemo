@@ -4,9 +4,11 @@ import { useState } from 'react'
 import { Github, Code2, Mail, Lock, ArrowRight, Sparkles } from 'lucide-react'
 import { signIn } from 'next-auth/react'
 import { message } from 'antd'
+import { useRouter } from 'next/navigation'
 import styles from './login.module.scss'
 
 export default function LoginPage() {
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [loginType, setLoginType] = useState<'oauth' | 'email'>('oauth')
   const [email, setEmail] = useState('')
@@ -140,7 +142,15 @@ export default function LoginPage() {
               <button 
                 className={styles.guestButton}
                 onClick={() => {
-                  message.info('游客模式开发中...')
+                  // 设置游客模式标识
+                  localStorage.setItem('guestMode', 'true')
+                  localStorage.setItem('guestUser', JSON.stringify({
+                    name: '游客用户',
+                    email: 'guest@leetmemo.com',
+                    isGuest: true
+                  }))
+                  message.success('已进入游客模式')
+                  router.push('/')
                 }}
               >
                 先随便看看 →

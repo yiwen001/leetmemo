@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Calendar, Plus, BookOpen, CheckCircle, Clock, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react'
+import { Calendar, Plus, BookOpen, CheckCircle, Clock, TrendingUp, ChevronDown, ChevronUp, User, LogOut, Settings } from 'lucide-react'
 import Link from 'next/link'
-import { Modal, message } from 'antd'
+import { Modal, message, Dropdown } from 'antd'
 import styles from './page.module.sass'
 import AddProblemForm from './components/problems/AddProblemForm'
-
+import { useSession, signOut } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 // 引入Ant Design样式
 import 'antd/dist/reset.css'
 
@@ -52,11 +53,72 @@ const stats = {
 }
 
 export default function HomePage() {
+  // const { data: session, status } = useSession()
+  const router = useRouter()
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [problems, setProblems] = useState(mockTodayReviews)
   const [expandedNotes, setExpandedNotes] = useState<string | null>(null)
-
+    // 如果未登录，重定向到登录页
+    if (status === 'loading') {
+      return (
+        <div className={styles.loadingContainer}>
+          <div className={styles.loading}>正在加载...</div>
+        </div>
+      )
+    }
+  
+    if (status === 'unauthenticated') {
+      router.push('/login')
+      return null
+    }
+  
+    // 退出登录
+    const handleSignOut = async () => {
+      await signOut({ callbackUrl: '/login' })
+      message.success('已退出登录')
+    }
+  
+    // 用户下拉菜单
+    const userMenuItems = [
+      {
+        key: 'profile',
+        label: (
+          <div className={styles.menuItem}>
+            <User size={16} />
+            <span>个人资料</span>
+          </div>
+        ),
+        onClick: () => {
+          message.info('个人资料功能开发中...')
+        }
+      },
+      {
+        key: 'settings',
+        label: (
+          <div className={styles.menuItem}>
+            <Settings size={16} />
+            <span>设置</span>
+          </div>
+        ),
+        onClick: () => {
+          message.info('设置功能开发中...')
+        }
+      },
+      {
+        type: 'divider' as const
+      },
+      {
+        key: 'logout',
+        label: (
+          <div className={styles.menuItem}>
+            <LogOut size={16} />
+            <span>退出登录</span>
+          </div>
+        ),
+        onClick: handleSignOut
+      }
+    ]
   // 从URL提取题目标题的简单函数
   const extractTitleFromUrl = (url: string) => {
     try {
@@ -179,7 +241,32 @@ const handleUncompleteReview = (problemId: string) => {
             <Link href="/problems" className={styles.navLink}>
               所有题目
             </Link>
-       
+        {/* 用户信息 */}
+        <Dropdown 
+              menu={{ items: userMenuItems }}
+              placement="bottomRight"
+              trigger={['click']}
+            >
+              <div className={styles.userProfile}>
+                <div className={styles.userAvatar}>
+                  {/* {session?.user?.image ? (
+                    <img 
+                      src={session.user.image} 
+                      alt={session.user.name || 'User'} 
+                      className={styles.avatarImage}
+                    />
+                  ) : ( */}
+                    <User size={20} />
+                  {/* )} */}
+                </div>
+                <div className={styles.userInfo}>
+                  <div className={styles.userName}>
+                    {/* {session?.user?.name || session?.user?.email || 'User'} */}
+                  </div>
+                  <ChevronDown size={16} className={styles.dropdownIcon} />
+                </div>
+              </div>
+            </Dropdown>
           </div>
         </div>
       </nav>
