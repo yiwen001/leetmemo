@@ -147,29 +147,29 @@ export default function HomePage() {
 
   const handleAddProblem = async (problemData: any) => {
     setLoading(true)
-    
+  
     try {
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      const title = extractTitleFromUrl(problemData.url)
-      
-      const newProblem = {
-        id: Date.now().toString(),
-        number: stats.totalProblems + 1,
-        title: title,
-        url: problemData.url,
-        reviewCount: 0,
-        lastReviewDate: new Date().toISOString().split('T')[0],
-        completed: false,
-        notes: problemData.notes || '',
+      const response = await fetch('/api/problems', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(problemData),
+      })
+  
+      const result = await response.json()
+  
+      if (response.ok) {
+        message.success(`题目"${result.problem.title}"添加成功！`)
+        setIsAddModalOpen(false)
+        
+        // 可以选择刷新页面或者更新本地状态
+        // window.location.reload() // 简单粗暴的方法
+      } else {
+        message.error(result.error || '添加题目失败')
       }
-      
-      setProblems(prev => [...prev, newProblem])
-      stats.totalProblems += 1
-      
-      setIsAddModalOpen(false)
-      message.success(`题目"${title}"添加成功！`)
     } catch (error) {
+      console.error('添加题目错误:', error)
       message.error('添加题目失败，请重试')
     } finally {
       setLoading(false)

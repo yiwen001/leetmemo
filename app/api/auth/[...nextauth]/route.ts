@@ -5,10 +5,10 @@ import { createClient } from '@supabase/supabase-js'
 // 创建 Supabase 客户端
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const handler = NextAuth({
+export const authOptions ={
   providers: [
     GithubProvider({
       clientId: process.env.GITHUB_ID!,
@@ -140,6 +140,6 @@ const handler = NextAuth({
   session: {
     strategy: 'jwt',
   },
-})
-
+}
+const handler = NextAuth(authOptions)
 export { handler as GET, handler as POST }
