@@ -8,6 +8,7 @@ import styles from './page.module.sass'
 import AddProblemForm from './components/problems/AddProblemForm'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 // 引入Ant Design样式
 import 'antd/dist/reset.css'
 import { testConnection } from '@/lib/test-db'
@@ -53,26 +54,35 @@ const stats = {
 }
 
 export default function HomePage() {
-  // const { data: session, status } = useSession()
+  const { data: session, status } = useSession()
   const router = useRouter()
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [problems, setProblems] = useState(mockTodayReviews)
   const [expandedNotes, setExpandedNotes] = useState<string | null>(null)
-    // 如果未登录，重定向到登录页
-    if (status === 'loading') {
-      return (
-        <div className={styles.loadingContainer}>
-          <div className={styles.loading}>正在加载...</div>
-        </div>
-      )
-    }
+ // 使用 useEffect 处理重定向
+ useEffect(() => {
+  if (status === 'unauthenticated') {
+    router.push('/login')
+  }
+}, [status, router])
   
+   // 加载状态
+   if (status === 'loading') {
+    return (
+      <div className={styles.loadingContainer}>
+        <div className={styles.loading}>正在加载...</div>
+      </div>
+    )
+  }
+    // 如果未认证，返回 null（重定向由 useEffect 处理）
     if (status === 'unauthenticated') {
-      router.push('/login')
       return null
     }
-  
+
+    
+ 
+
     // 退出登录
     const handleSignOut = async () => {
       await signOut({ callbackUrl: '/login' })
@@ -256,19 +266,19 @@ const handleUncompleteReview = (problemId: string) => {
             >
               <div className={styles.userProfile}>
                 <div className={styles.userAvatar}>
-                  {/* {session?.user?.image ? (
+                  {session?.user?.image ? (
                     <img 
                       src={session.user.image} 
                       alt={session.user.name || 'User'} 
                       className={styles.avatarImage}
                     />
-                  ) : ( */}
+                  ) : (
                     <User size={20} />
-                  {/* )} */}
+                    )}   
                 </div>
                 <div className={styles.userInfo}>
                   <div className={styles.userName}>
-                    {/* {session?.user?.name || session?.user?.email || 'User'} */}
+                    {session?.user?.name || session?.user?.email || 'User'}
                   </div>
                   <ChevronDown size={16} className={styles.dropdownIcon} />
                 </div>
