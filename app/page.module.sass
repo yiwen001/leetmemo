@@ -527,8 +527,59 @@
     
     &:hover 
       background: #4338CA
-    
+// 在现有样式基础上添加
+
+.sectionMeta
+  display: flex
+  align-items: center
+  gap: 12px
+
+.planInfo
+  font-size: 0.85rem
+  color: #666
+  background: #f8f9fa
+  padding: 4px 8px
+  border-radius: 4px
+
+.addNoteButton
+  display: flex
+  align-items: center
+  gap: 6px
+  padding: 8px 12px
+  background: #f0f0f0
+  border: none
+  border-radius: 6px
+  font-size: 0.85rem
+  color: #666
+  cursor: pointer
+  transition: all 0.2s
+
+  &:hover
+    background: #e0e0e0
+    color: #333
+
+.noNotes
+  text-align: center
+  padding: 20px
+  color: #888
+
+  p
+    margin-bottom: 12px
+
+// 更新按钮样式
+.addButton
+  background: #4F46E5
   
+  &:hover
+    background: #4338CA 
+// 添加到现有样式中
+.calendarSection
+  margin-top: 32px
+
+.calendarDescription
+  font-size: 0.9rem
+  color: #666
+  font-weight: normal
 
 @keyframes slideDown
   from
