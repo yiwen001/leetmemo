@@ -539,6 +539,62 @@
   color: #666
   background: #f8f9fa
   padding: 4px 8px
+
+// 可折叠日历区域
+.calendarSection
+  background: white
+  border-radius: 12px
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05)
+  margin-bottom: 24px
+  overflow: hidden
+  transition: all 0.3s ease
+  
+  &.collapsed
+    .sectionHeader
+      margin-bottom: 0
+    
+  .sectionHeader
+    display: flex
+    justify-content: space-between
+    align-items: center
+    padding: 16px 20px
+    border-bottom: 1px solid #f0f0f0
+    background: #fafafa
+    transition: all 0.3s ease
+    
+    &:hover
+      background: #f5f5f5
+    
+    .sectionTitle
+      display: flex
+      align-items: center
+      gap: 8px
+      margin: 0
+      font-size: 1.1rem
+      color: #333
+    
+    .sectionMeta
+      display: flex
+      align-items: center
+      gap: 12px
+      
+      .calendarDescription
+        color: #666
+        font-size: 0.85rem
+      
+      svg
+        color: #666
+        transition: transform 0.2s ease
+  
+  // 日历内容区域
+  > div:not(.sectionHeader)
+    padding: 16px 20px
+    transition: all 0.3s ease
+    
+    &.collapsed
+      max-height: 0
+      padding: 0 20px
+      overflow: hidden
   border-radius: 4px
 
 .addNoteButton

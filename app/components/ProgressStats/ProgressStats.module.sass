@@ -1,14 +1,14 @@
 // components/ProgressStats.module.sass
 .progressStats
-  margin-bottom: 32px
+  margin-bottom: 20px
 
 .loadingState
   .skeleton
-    height: 120px
+    height: 100px
     background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)
     background-size: 200% 100%
     animation: loading 1.5s infinite
-    border-radius: 12px
+    border-radius: 8px
 
 @keyframes loading
   0%
@@ -18,110 +18,109 @@
 
 .mainProgress
   background: white
-  border-radius: 16px
-  padding: 24px
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06)
-  margin-bottom: 20px
+  border-radius: 12px
+  padding: 16px
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05)
+  margin-bottom: 12px
 
 .progressHeader
   display: flex
   justify-content: space-between
-  align-items: flex-start
-  margin-bottom: 16px
+  align-items: center
+  margin-bottom: 12px
 
 .progressInfo
   h3
-    margin: 0 0 4px 0
-    font-size: 1.25rem
+    margin: 0 0 2px 0
+    font-size: 1rem
     font-weight: 600
     color: #1a1a1a
 
 .progressText
   color: #666
-  font-size: 0.9rem
+  font-size: 0.8rem
 
 .progressPercentage
-  font-size: 2rem
+  font-size: 1.5rem
   font-weight: 700
   color: #4F46E5
   line-height: 1
 
 .progressBar
   width: 100%
-  height: 12px
+  height: 8px
   background: #f3f4f6
-  border-radius: 6px
+  border-radius: 4px
   overflow: hidden
-  margin-bottom: 8px
+  margin-bottom: 6px
 
 .progressFill
   height: 100%
   background: linear-gradient(90deg, #4F46E5, #7C3AED)
-  border-radius: 6px
-  transition: width 0.6s ease
+  border-radius: 4px
 
 .progressLabels
   display: flex
   justify-content: space-between
-  font-size: 0.85rem
+  font-size: 0.75rem
   color: #666
 
 .statsCards
   display: grid
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr))
-  gap: 16px
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr))
+  gap: 10px
 
 .statCard
   background: white
-  border-radius: 12px
-  padding: 20px
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06)
+  border-radius: 8px
+  padding: 12px
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05)
   display: flex
-  align-items: flex-start
-  gap: 16px
-  transition: transform 0.2s ease, box-shadow 0.2s ease
-
-  &:hover
-    transform: translateY(-2px)
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1)
+  align-items: center
+  gap: 10px
 
 .statIcon
-  width: 48px
-  height: 48px
-  border-radius: 12px
+  width: 36px
+  height: 36px
+  border-radius: 8px
   display: flex
   align-items: center
   justify-content: center
   flex-shrink: 0
+
+  svg
+    width: 18px
+    height: 18px
 
 .statContent
   flex: 1
   min-width: 0
 
 .statValue
-  font-size: 1.75rem
+  font-size: 1.25rem
   font-weight: 700
   color: #1a1a1a
   line-height: 1.2
-  margin-bottom: 4px
+  margin-bottom: 2px
 
 .statLabel
-  font-size: 0.9rem
+  font-size: 0.75rem
   color: #666
-  margin-bottom: 8px
+  margin-bottom: 4px
 
 .statSubtext
-  font-size: 0.8rem
+  font-size: 0.7rem
   color: #888
 
 .statProgress
   display: flex
   align-items: center
-  gap: 8px
+  gap: 6px
+  margin-top: 2px
 
 .miniProgressBar
   flex: 1
-  height: 4px
+  height: 3px
   background: #f3f4f6
   border-radius: 2px
   overflow: hidden
@@ -129,27 +128,39 @@
 .miniProgressFill
   height: 100%
   border-radius: 2px
-  transition: width 0.4s ease
 
 .miniProgressText
-  font-size: 0.75rem
+  font-size: 0.65rem
   color: #666
   white-space: nowrap
 
 // 响应式设计
 @media (max-width: 768px)
   .statsCards
-    grid-template-columns: 1fr
-  
-  .progressHeader
-    flex-direction: column
+    grid-template-columns: repeat(2, 1fr)
     gap: 8px
   
+  .mainProgress
+    padding: 12px
+  
+  .progressHeader
+    margin-bottom: 10px
+  
+  .progressInfo h3
+    font-size: 0.95rem
+  
+  .progressText
+    font-size: 0.75rem
+  
   .progressPercentage
-    font-size: 1.5rem
+    font-size: 1.25rem
   
   .statCard
-    padding: 16px
+    padding: 10px 8px
   
   .statValue
-    font-size: 1.5rem
+    font-size: 1.1rem
+  
+  .statLabel,
+  .statSubtext
+    font-size: 0.7rem

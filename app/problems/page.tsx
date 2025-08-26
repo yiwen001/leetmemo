@@ -10,65 +10,38 @@ import rehypeRaw from 'rehype-raw'
 import remarkGfm from 'remark-gfm'
 import styles from './problems.module.scss'
 
-// 模拟所有题目数据
-const mockProblems = [
-  {
-    id: '1',
-    number: 1,
-    title: '比较版本号',
-    url: 'https://leetcode.cn/problems/compare-version-numbers',
-    reviewCount: 3,
-    lastReviewDate: '2024-01-15',
-    addedDate: '2023-12-10',
-    notes: '### 关键思路\n\n按点分割字符串，然后逐段比较数字大小。注意处理前导零和长度不同的情况。\n\n**代码要点**:\n- `split(".")`分割\n- `parseInt()`转数字\n- 补齐短的版本号\n\n```java\npublic int compareVersion(String v1, String v2) {\n    String[] a1 = v1.split("\\\\.");\n    String[] a2 = v2.split("\\\\.");\n    \n    int len = Math.max(a1.length, a2.length);\n    \n    for(int i=0; i<len; i++) {\n        int n1 = i < a1.length ? Integer.parseInt(a1[i]) : 0;\n        int n2 = i < a2.length ? Integer.parseInt(a2[i]) : 0;\n        \n        if(n1 < n2) return -1;\n        if(n1 > n2) return 1;\n    }\n    \n    return 0;\n}\n```',
-  },
-  {
-    id: '2', 
-    number: 2,
-    title: 'LRU Cache',
-    url: 'https://leetcode.com/problems/lru-cache/',
-    reviewCount: 2,
-    lastReviewDate: '2024-01-13',
-    addedDate: '2023-12-15',
-    notes: '### 实现方法\n\n双向链表 + 哈希表实现。链表维护访问顺序，哈希表提供O(1)查找。\n\n**核心操作**:\n- get: 移到头部\n- put: 添加到头部，超容量删除尾部\n\n#### 复杂度\n- 时间复杂度: O(1)\n- 空间复杂度: O(capacity)',
-  },
-  {
-    id: '3',
-    number: 3,
-    title: 'Trapping Rain Water',
-    url: 'https://leetcode.com/problems/trapping-rain-water/',
-    reviewCount: 1,
-    lastReviewDate: '2024-01-14',
-    addedDate: '2023-12-20',
-    notes: '### 双指针法\n\n左右指针向中间移动，维护左右最大高度。\n\n**思路**:\n当前位置能接的雨水 = min(左侧最高, 右侧最高) - 当前高度\n\n![接雨水示意图](https://assets.leetcode.com/uploads/2018/10/22/rainwatertrap.png)',
-  },
-  {
-    id: '4',
-    number: 4,
-    title: '最长回文子串',
-    url: 'https://leetcode.cn/problems/longest-palindromic-substring/',
-    reviewCount: 4,
-    lastReviewDate: '2024-01-18',
-    addedDate: '2023-11-05',
-    notes: '### 中心扩展法\n\n从每个位置出发，向两边扩展。需要考虑奇数和偶数长度的回文串。\n\n**复杂度**:\n- 时间复杂度: O(n²)\n- 空间复杂度: O(1)',
-  },
-  {
-    id: '5',
-    number: 5,
-    title: '合并K个排序链表',
-    url: 'https://leetcode.cn/problems/merge-k-sorted-lists/',
-    reviewCount: 2,
-    lastReviewDate: '2024-01-10',
-    addedDate: '2024-01-01',
-    notes: '### 优先队列法\n\n使用小顶堆：将所有链表头节点放入堆中，每次取出最小的，并将其下一个节点放入堆中。\n\n**复杂度分析**:\n- 时间复杂度：O(N log k)，其中k是链表数量，N是总节点数\n- 空间复杂度：O(k)',
-  },
-];
+import { DEFAULT_PROBLEMS } from '@/lib/default-study-plan';
+
+// 将默认题目转换为应用所需格式
+const getDefaultProblems = () => {
+  const today = new Date().toISOString().split('T')[0];
+  return DEFAULT_PROBLEMS.map((problem, index) => {
+    // 从题目名称中提取标题（移除LeetCode和题号）
+    const title = problem.name.replace(/^LeetCode \d+\.\s*/, '');
+    // 从URL中提取题号
+    const numberMatch = problem.url.match(/\/(\d+)[\/-]/);
+    const number = numberMatch ? parseInt(numberMatch[1], 10) : index + 1;
+    
+    return {
+      id: `problem-${number}`,
+      number,
+      title,
+      url: problem.url,
+      reviewCount: 0, // 初始复习次数为0
+      lastReviewDate: today, // 使用今天作为最后复习日期
+      addedDate: today, // 使用今天作为添加日期
+      notes: '', // 初始没有笔记
+    };
+  });
+};
+
+const defaultProblems = getDefaultProblems();
 
 // 排序选项
 type SortOption = 'newest' | 'oldest' | 'most-reviewed' | 'least-reviewed' | 'recently-reviewed' | 'title-asc' | 'title-desc';
 
 export default function ProblemsPage() {
-  const [problems, setProblems] = useState(mockProblems);
+  const [problems, setProblems] = useState(defaultProblems);
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [currentNotes, setCurrentNotes] = useState('');

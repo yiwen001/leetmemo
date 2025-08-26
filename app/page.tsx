@@ -39,6 +39,7 @@ export default function HomePage() {
   const [dataLoading, setDataLoading] = useState(true)
   const [studyPlan, setStudyPlan] = useState<any>(null)
   const [generator] = useState(new StudyPlanGenerator())
+  const [isCalendarExpanded, setIsCalendarExpanded] = useState(true)
 
   // 使用 useEffect 处理重定向
   useEffect(() => {
@@ -314,6 +315,30 @@ export default function HomePage() {
           loading={dataLoading}
         />
 
+        {/* 学习日历 - 可折叠 */}
+        {studyPlan && (
+          <div className={`${styles.calendarSection} ${!isCalendarExpanded ? styles.collapsed : ''}`}>
+            <div 
+              className={styles.sectionHeader} 
+              onClick={() => setIsCalendarExpanded(!isCalendarExpanded)}
+              style={{ cursor: 'pointer' }}
+            >
+              <h2 className={styles.sectionTitle}>
+                <Calendar size={24} />
+                学习日历
+              </h2>
+              <div className={styles.sectionMeta}>
+                <span className={styles.calendarDescription}>
+                  点击展开/收起
+                </span>
+                {isCalendarExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              </div>
+            </div>
+            
+            {isCalendarExpanded && <StudyCalendar dailyPlans={studyPlan.dailyPlans} />}
+          </div>
+        )}
+
         {/* 今日复习列表 */}
         <div className={styles.reviewSection}>
           <div className={styles.sectionHeader}>
@@ -440,22 +465,6 @@ export default function HomePage() {
             )}
           </div>
         </div>
-          {/* 学习日历 - 新添加的部分 */}
-          {studyPlan && (
-          <div className={styles.calendarSection}>
-            <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>
-                <Calendar size={24} />
-                学习日历
-              </h2>
-              <span className={styles.calendarDescription}>
-                点击日期查看详细学习任务
-              </span>
-            </div>
-            
-            <StudyCalendar dailyPlans={studyPlan.dailyPlans} />
-          </div>
-        )}
       </main>
 
       {/* 创建计划Modal */}
