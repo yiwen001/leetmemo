@@ -10,20 +10,46 @@ import styles from './login.module.scss'
 export default function LoginPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
-
+  const handleGiteeLogin = async () => {
+  setIsLoading(true)
+  try {
+    console.log('开始 Gitee 登录...')
+    await signIn('gitee', { callbackUrl: '/' })
+  } catch (error) {
+    console.error('Gitee 登录错误:', error)
+    message.error('Gitee 登录失败')
+  } finally {
+    setIsLoading(false)
+  }
+}
   // GitHub 登录
   const handleGithubLogin = async () => {
-    setIsLoading(true)
     try {
-      console.log('开始登录...') // 添加调试日志
-      
-      // 直接重定向，不使用 redirect: false
-      await signIn('github', { 
+      setIsLoading(true)
+      console.log('开始GitHub登录...')
+      // 在文件开头添加
+          console.log('=== NextAuth 环境变量检查 ===')
+          console.log('GITHUB_ID:', process.env.GITHUB_ID ? '✅' : '❌')
+          console.log('GITHUB_SECRET:', process.env.GITHUB_SECRET ? '✅' : '❌')
+  
+
+      const result = await signIn('github', {
         callbackUrl: '/',
+        redirect: false 
       })
+
+      console.log('登录结果:', result)
+
+      if (result?.error) {
+        console.error('登录错误:', result.error)
+        message.error('登录失败，请重试')
+      } else if (result?.ok) {
+        message.success('登录成功！')
+        router.push('/')
+      }
     } catch (error) {
-      console.error('登录错误:', error) // 添加错误日志
-      message.error('登录失败，请重试')
+      console.error('登录过程中出错:', error)
+      message.error('登录过程中出现错误，请重试')
     } finally {
       setIsLoading(false)
     }
@@ -84,6 +110,31 @@ export default function LoginPage() {
               <span>{isLoading ? '登录中...' : '使用 GitHub 登录'}</span>
               <ArrowRight size={16} className={styles.arrow} />
             </button>
+            <button 
+  className={styles.giteeButton}
+  onClick={handleGiteeLogin}
+  disabled={isLoading}
+  style={{
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '12px',
+    padding: '16px 24px',
+    background: '#C71D23',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    fontSize: '1rem',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    marginBottom: '16px'
+  }}
+>
+  <span>🦄</span>
+  <span>{isLoading ? '登录中...' : '使用 Gitee 登录'}</span>
+</button>
 
             <div className={styles.divider}>
               <span>或</span>

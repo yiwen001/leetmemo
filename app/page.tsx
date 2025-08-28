@@ -43,9 +43,17 @@ export default function HomePage() {
 
   // 使用 useEffect 处理重定向
   useEffect(() => {
+    if (status === 'loading') {
+      // 认证状态加载中，不做任何操作
+      return
+    }
+
     if (status === 'unauthenticated') {
       router.push('/login')
-    } else if (status === 'authenticated') {
+      return
+    }
+
+    if (status === 'authenticated') {
       initializeDefaultPlan()
     }
   }, [status, router])
@@ -249,6 +257,23 @@ export default function HomePage() {
     }
     return a.completed ? 1 : -1
   })
+
+  // 如果正在加载认证状态或未认证，显示加载页面
+  if (status === 'loading') {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        fontSize: '18px'
+      }}>
+        正在加载...
+      </div>
+    )
+  }
+
+ 
 
   // 计算统计数据
   const completedProblems = problems.filter(p => p.completed).length

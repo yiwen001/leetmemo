@@ -1,0 +1,64 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  avatarUrl String?  @map("avatar_url")
+  githubId  String?  @unique @map("github_id")
+  giteeId   String?  @unique @map("gitee_id")  // 新增这行
+  provider  String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // 关联
+  problems     Problem[]
+  studyRecords StudyRecord[]
+
+  @@map("users")
+}
+
+model Problem {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  title      String
+  url        String
+  notes      String   @default("")
+  orderIndex Int      @map("order_index")
+  isDeleted  Boolean  @default(false) @map("is_deleted")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // 关联
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studyRecords StudyRecord[]
+
+  @@map("problems")
+}
+
+model StudyRecord {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  problemId   String    @map("problem_id")
+  completedAt DateTime? @map("completed_at")
+  difficulty  String    @default("medium")
+  timeSpent   Int       @default(0) @map("time_spent") // 分钟
+  reviewCount Int       @default(0) @map("review_count")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  // 关联
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@map("study_records")
+}
