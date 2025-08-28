@@ -54,53 +54,64 @@ export default function HomePage() {
     }
 
     if (status === 'authenticated') {
-      initializeDefaultPlan()
+      checkExistingPlan()
     }
   }, [status, router])
 
-  // 初始化默认学习计划
-  const initializeDefaultPlan = () => {
+  // 检查现有计划
+  const checkExistingPlan = async () => {
     setDataLoading(true)
     try {
-      // 生成默认的30天19题计划
-      const plan = generator.generatePlan(DEFAULT_PLAN_CONFIG)
-      setStudyPlan(plan)
-      
-      // 获取今日任务
-      const todayTasks = generator.getTodayTasks(plan.dailyPlans)
-      if (todayTasks) {
-        // 转换为旧格式以兼容现有组件
-        const todayProblems = [
-          ...todayTasks.newProblems.map((p, index) => ({
-            id: p.id || `new-${index}`,
-            number: index + 1,
-            title: p.name,
-            url: p.url,
-            notes: '',
-            reviewCount: 0,
-            lastReviewDate: todayTasks.date,
-            completed: false,
-            addedDate: todayTasks.date
-          })),
-          ...todayTasks.reviewProblems.map((p, index) => ({
-            id: p.id || `review-${index}`,
-            number: todayTasks.newProblems.length + index + 1,
-            title: p.name,
-            url: p.url,
-            notes: '',
-            reviewCount: 1,
-            lastReviewDate: todayTasks.date,
-            completed: false,
-            addedDate: todayTasks.date
-          }))
-        ]
-        setProblems(todayProblems)
+      // 1. 从数据库查询用户是否有活跃的计划
+      const response = await fetch('/api/study-plans/active')
+      const result = await response.json()
+
+      if (result.success && result.plan) {
+        // 2. 有计划 -> 检查昨日任务完成情况并调整
+        await checkYesterdayAndAdjust(result.plan)
+      } else {
+        // 3. 没有计划 -> 显示空状态，等待用户创建
+        setStudyPlan(null)
+        setProblems([])
+        console.log('用户暂无活跃的学习计划')
       }
     } catch (error) {
-      console.error('初始化学习计划失败:', error)
-      message.error('初始化学习计划失败')
+      console.error('检查计划失败:', error)
+      message.error('加载学习计划失败')
+      setStudyPlan(null)
+      setProblems([])
     } finally {
       setDataLoading(false)
+    }
+  }
+
+  // 检查昨日任务并调整计划
+  const checkYesterdayAndAdjust = async (plan: any) => {
+    try {
+      // 检查昨日任务完成情况
+      const response = await fetch(`/api/study-plans/${plan.id}/check-yesterday`)
+      const result = await response.json()
+
+      if (result.success) {
+        if (result.planDestroyed) {
+          // 计划被销毁
+          setStudyPlan(null)
+          setProblems([])
+          message.warning('计划积压过多已自动重置，请重新制定计划')
+        } else {
+          // 获取今日任务
+          const todayResponse = await fetch(`/api/study-plans/${plan.id}/today-tasks`)
+          const todayResult = await todayResponse.json()
+
+          if (todayResult.success) {
+            setStudyPlan(plan)
+            setProblems(todayResult.tasks || [])
+          }
+        }
+      }
+    } catch (error) {
+      console.error('检查昨日任务失败:', error)
+      message.error('检查任务状态失败')
     }
   }
 

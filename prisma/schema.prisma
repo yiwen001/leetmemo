@@ -12,7 +12,7 @@ datasource db {
 
 model User {
   id        String   @id @default(cuid())
-  email     String   @unique
+  email     String?  @unique  // 改为可选
   name      String?
   avatarUrl String?  @map("avatar_url")
   githubId  String?  @unique @map("github_id")
@@ -24,6 +24,7 @@ model User {
   // 关联
   problems     Problem[]
   studyRecords StudyRecord[]
+  studyPlans StudyPlan[]
 
   @@map("users")
 }
@@ -38,10 +39,13 @@ model Problem {
   isDeleted  Boolean  @default(false) @map("is_deleted")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
+  leetcodeId  String?  @map("leetcode_id")  // 关联预设题目的ID
 
   // 关联
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   studyRecords StudyRecord[]
+  leetcodeProblem LeetCodeProblem? @relation(fields: [leetcodeId], references: [id])  // 添加这行
+   
 
   @@map("problems")
 }
@@ -61,4 +65,67 @@ model StudyRecord {
   problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
 
   @@map("study_records")
+}
+
+model StudyPlan {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  status          String   @default("active") // active/destroyed/completed
+  startDate       DateTime @map("start_date")
+  intensity       String   @default("medium")
+  duration        Int      @default(30) // 计划天数
+
+  // 计划核心数据
+  planProblems    String[] @map("plan_problems")    // 计划要学的所有题目ID
+  learnedProblems String[] @map("learned_problems") // 已学会的题目ID
+
+  // 积压管理
+  pendingTasks    Int      @default(0) @map("pending_tasks")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // 关联
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyTasks      DailyTask[]
+
+  @@map("study_plans")
+}
+
+model DailyTask {
+  id             String   @id @default(cuid())
+  planId         String   @map("plan_id")
+  day            Int      // 第几天
+  originalDate   DateTime @map("original_date")   // 原计划日期
+  currentDate    DateTime @map("current_date")    // 当前应完成日期
+
+  newProblems    String[] @map("new_problems")    // 新题目ID数组
+  reviewProblems String[] @map("review_problems") // 复习题目ID数组
+
+  status         String   @default("pending") // pending/completed
+  completedAt    DateTime? @map("completed_at")
+
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // 关联
+  plan           StudyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@map("daily_tasks")
+}
+
+model LeetCodeProblem {
+  id          String   @id @default(cuid())
+  number      Int      @unique  // LeetCode题号
+  title       String   // 题目标题
+  titleCn     String?  // 中文标题
+  difficulty  String   // easy/medium/hard
+  url         String   // LeetCode链接
+  tags        String[] // 标签数组
+  category    String?  // 分类（如：数组、链表等）
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // 关联
+  problems    Problem[]
+
+  @@map("leetcode_problems")
 }

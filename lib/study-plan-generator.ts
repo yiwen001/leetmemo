@@ -17,11 +17,12 @@ export interface Problem {
   }
   
   export interface StudyPlanConfig {
-    problems: Problem[]
-    duration: number
-    startDate: string
-    intensity: 'easy' | 'medium' | 'hard'
-  }
+  problems: Problem[]        // 用户选定的题目列表
+  learnedProblems?: string[] // 已学过的题目ID（重新开始时用）
+  duration: number           // 计划天数
+  startDate: string         // 开始日期
+  intensity: 'easy' | 'medium' | 'hard'
+}
   
   export class StudyPlanGenerator {
     private config = {
@@ -33,26 +34,42 @@ export interface Problem {
       }
     }
   
-    generatePlan(config: StudyPlanConfig) {
-      const { problems, duration, startDate, intensity } = config
-      
-      // 生成每日计划
-      const dailyPlans = this.createDailyPlans(problems, duration, startDate, intensity)
-      
-      return {
-        projectInfo: {
-          totalProblems: problems.length,
-          duration,
-          startDate,
-          endDate: this.calculateEndDate(startDate, duration),
-          intensity
-        },
-        dailyPlans,
-        statistics: this.generateStats(dailyPlans, problems.length)
-      }
-    }
+   generatePlan(config: StudyPlanConfig) {
+  const { problems, learnedProblems = [], duration, startDate, intensity } = config
+  
+  // 过滤掉已学过的题目
+  const remainingProblems = problems.filter(p => 
+    !learnedProblems.includes(p.id || '')
+  )
+  
+  console.log(`总题目: ${problems.length}, 已学: ${learnedProblems.length}, 剩余: ${remainingProblems.length}`)
+  
+  if (remainingProblems.length === 0) {
+    throw new Error('没有剩余题目可以学习')
+  }
+  
+  // 用剩余题目生成计划
+  const dailyPlans = this.createDailyPlans(remainingProblems, duration, startDate, intensity)
+  
+  return {
+    projectInfo: {
+      totalProblems: problems.length,
+      remainingProblems: remainingProblems.length,
+      learnedProblems: learnedProblems.length,
+      duration,
+      startDate,
+      endDate: this.calculateEndDate(startDate, duration),
+      intensity
+    },
+    dailyPlans,
+    statistics: this.generateStats(dailyPlans, remainingProblems.length)
+  }
+}
   
     private createDailyPlans(problems: Problem[], duration: number, startDate: string, intensity: string): DailyPlan[] {
+      const totalProblems = problems.length
+      const dailyNewCount = Math.ceil(totalProblems / duration) // 每天新题数量
+      
       const plans: DailyPlan[] = []
       const start = new Date(startDate)
       const limits = this.config.LIMITS[intensity as keyof typeof this.config.LIMITS]
