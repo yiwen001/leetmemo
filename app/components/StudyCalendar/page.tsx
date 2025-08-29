@@ -18,7 +18,7 @@ interface StudyCalendarProps {
   dailyPlans: DailyPlan[]
 }
 
-export default function StudyCalendar({ dailyPlans }: StudyCalendarProps) {
+export default function StudyCalendar({ dailyPlans = [] }: StudyCalendarProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [isModalOpen, setIsModalOpen] = useState(false)

@@ -74,6 +74,11 @@ export const authOptions = {
     },
 
     async session({ session, token }) {
+      // 将用户ID添加到session中
+      if (session?.user && token?.userId) {
+        session.user.id = token.userId
+      }
+      console.log('Session回调 - 最终session:', session)
       return session
     },
 
@@ -82,6 +87,13 @@ export const authOptions = {
         token.sub = account.providerAccountId
         token.provider = account.provider
       }
+
+      // 在首次登录时保存用户ID到token
+      if (user?.id) {
+        token.userId = user.id
+        console.log('JWT回调 - 保存用户ID到token:', user.id)
+      }
+
       return token
     },
   },

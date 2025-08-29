@@ -11,6 +11,7 @@ import 'antd/dist/reset.css'
 
 // 导入新组件
 import CreatePlanModal from './components/CreatePlanModal/page'
+import CreatePlanModalNew from './components/CreatePlanModal/CreatePlanModalNew'
 import ProgressStats from './components/ProgressStats/ProgressStats'
 import { StudyPlanGenerator } from '../lib/study-plan-generator'
 import { DEFAULT_PLAN_CONFIG } from '../lib/default-study-plan'
@@ -34,6 +35,7 @@ export default function HomePage() {
   const router = useRouter()
   const [isCreatePlanModalOpen, setIsCreatePlanModalOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [createPlanLoading, setCreatePlanLoading] = useState(false)
   const [problems, setProblems] = useState<Problem[]>([])
   const [expandedNotes, setExpandedNotes] = useState<string | null>(null)
   const [dataLoading, setDataLoading] = useState(true)
@@ -115,6 +117,8 @@ export default function HomePage() {
     }
   }
 
+
+
   // 如果未认证，返回 null
   if (status === 'unauthenticated') {
     return null
@@ -165,56 +169,31 @@ export default function HomePage() {
 
    // 创建新计划
    const handleCreatePlan = async (planData: any) => {
-    setLoading(true)
+    setCreatePlanLoading(true)
     try {
-      // 生成新的学习计划
-      const newPlan = generator.generatePlan({
-        problems: planData.problems,
-        duration: planData.duration,
-        startDate: planData.startDate,
-        intensity: planData.intensity
+      const response = await fetch('/api/study-plans/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(planData)
       })
-      
-      setStudyPlan(newPlan)
-      
-      // 获取今日任务
-      const todayTasks = generator.getTodayTasks(newPlan.dailyPlans)
-      if (todayTasks) {
-        const todayProblems = [
-          ...todayTasks.newProblems.map((p, index) => ({
-            id: p.id || `new-${index}`,
-            number: index + 1,
-            title: p.name,
-            url: p.url,
-            notes: '',
-            reviewCount: 0,
-            lastReviewDate: todayTasks.date,
-            completed: false,
-            addedDate: todayTasks.date
-          })),
-          ...todayTasks.reviewProblems.map((p, index) => ({
-            id: p.id || `review-${index}`,
-            number: todayTasks.newProblems.length + index + 1,
-            title: p.name,
-            url: p.url,
-            notes: '',
-            reviewCount: 1,
-            lastReviewDate: todayTasks.date,
-            completed: false,
-            addedDate: todayTasks.date
-          }))
-        ]
-        setProblems(todayProblems)
+
+      const result = await response.json()
+
+      if (result.success) {
+        message.success('学习计划创建成功！')
+        setIsCreatePlanModalOpen(false)
+        // 重新检查计划状态
+        await checkExistingPlan()
+      } else {
+        message.error(result.error || '创建计划失败')
       }
-      
-      setIsCreatePlanModalOpen(false)
-      message.success(`学习计划"${planData.name}"创建成功！`)
-      
     } catch (error) {
-      console.error('创建计划错误:', error)
+      console.error('创建计划失败:', error)
       message.error('创建计划失败，请重试')
     } finally {
-      setLoading(false)
+      setCreatePlanLoading(false)
     }
   }
 
@@ -371,7 +350,7 @@ export default function HomePage() {
               </div>
             </div>
             
-            {isCalendarExpanded && <StudyCalendar dailyPlans={studyPlan.dailyPlans} />}
+            {isCalendarExpanded && <StudyCalendar dailyPlans={[]} />}
           </div>
         )}
 
@@ -388,10 +367,7 @@ export default function HomePage() {
               </span>
               {studyPlan && (
                 <span className={styles.planInfo}>
-                  {studyPlan.projectInfo.intensity === 'easy' && '轻松模式'}
-                  {studyPlan.projectInfo.intensity === 'medium' && '中等强度'}
-                  {studyPlan.projectInfo.intensity === 'hard' && '高强度'}
-                  · {studyPlan.projectInfo.duration}天计划
+                  {studyPlan.duration}天学习计划
                 </span>
               )}
             </div>
@@ -504,11 +480,11 @@ export default function HomePage() {
       </main>
 
       {/* 创建计划Modal */}
-      <CreatePlanModal
+      <CreatePlanModalNew
         open={isCreatePlanModalOpen}
         onCancel={() => setIsCreatePlanModalOpen(false)}
         onSubmit={handleCreatePlan}
-        loading={loading}
+        loading={createPlanLoading}
       />
     </div>
   )
