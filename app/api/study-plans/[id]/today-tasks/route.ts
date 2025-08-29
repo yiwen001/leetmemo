@@ -48,10 +48,24 @@ export async function GET(
       }
     })
 
+    // 获取用户的学习记录
+    const studyRecords = await prisma.studyRecord.findMany({
+      where: {
+        userId: session.user.id,
+        problemId: { in: allProblemIds }
+      }
+    })
+
     // 创建题目ID到详情的映射
     const problemMap = new Map()
     problemDetails.forEach(problem => {
       problemMap.set(problem.id, problem)
+    })
+
+    // 创建题目ID到学习记录的映射
+    const recordMap = new Map()
+    studyRecords.forEach(record => {
+      recordMap.set(record.problemId, record)
     })
 
     // 转换为前端需要的格式
@@ -62,16 +76,18 @@ export async function GET(
       // 处理新题目
       for (const problemId of task.newProblems) {
         const problemDetail = problemMap.get(problemId)
+        const studyRecord = recordMap.get(problemId)
+
         if (problemDetail) {
           tasks.push({
             id: `${task.id}-new-${problemId}`,
             number: problemNumber++,
             title: problemDetail.titleCn || problemDetail.title,
             url: problemDetail.url,
-            notes: '',
-            reviewCount: 0,
-            lastReviewDate: today.toISOString(),
-            completed: false,
+            notes: studyRecord?.notes || '',
+            reviewCount: studyRecord?.reviewCount || 0,
+            lastReviewDate: studyRecord?.lastReviewDate?.toISOString() || today.toISOString(),
+            completed: studyRecord?.completed || false,
             addedDate: today.toISOString(),
             type: 'new',
             difficulty: problemDetail.difficulty,
@@ -83,16 +99,18 @@ export async function GET(
       // 处理复习题目
       for (const problemId of task.reviewProblems) {
         const problemDetail = problemMap.get(problemId)
+        const studyRecord = recordMap.get(problemId)
+
         if (problemDetail) {
           tasks.push({
             id: `${task.id}-review-${problemId}`,
             number: problemNumber++,
             title: `[复习] ${problemDetail.titleCn || problemDetail.title}`,
             url: problemDetail.url,
-            notes: '',
-            reviewCount: 1,
-            lastReviewDate: today.toISOString(),
-            completed: false,
+            notes: studyRecord?.notes || '',
+            reviewCount: (studyRecord?.reviewCount || 0) + 1,
+            lastReviewDate: studyRecord?.lastReviewDate?.toISOString() || today.toISOString(),
+            completed: studyRecord?.completed || false,
             addedDate: today.toISOString(),
             type: 'review',
             difficulty: problemDetail.difficulty,

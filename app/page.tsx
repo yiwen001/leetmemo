@@ -15,7 +15,7 @@ import CreatePlanModalNew from './components/CreatePlanModal/CreatePlanModalNew'
 import ProgressStats from './components/ProgressStats/ProgressStats'
 import { StudyPlanGenerator } from '../lib/study-plan-generator'
 import { DEFAULT_PLAN_CONFIG } from '../lib/default-study-plan'
-import StudyCalendar from './components/StudyCalendar/page'
+import StudyCalendarNew from './components/StudyCalendar/StudyCalendarNew'
 
 // 定义数据类型
 interface Problem {
@@ -34,7 +34,7 @@ export default function HomePage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [isCreatePlanModalOpen, setIsCreatePlanModalOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
+ 
   const [createPlanLoading, setCreatePlanLoading] = useState(false)
   const [problems, setProblems] = useState<Problem[]>([])
   const [expandedNotes, setExpandedNotes] = useState<string | null>(null)
@@ -42,7 +42,7 @@ export default function HomePage() {
   const [noteText, setNoteText] = useState('')
   const [dataLoading, setDataLoading] = useState(true)
   const [studyPlan, setStudyPlan] = useState<any>(null)
-  const [generator] = useState(new StudyPlanGenerator())
+ 
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(true)
 
   // 使用 useEffect 处理重定向
@@ -145,6 +145,31 @@ export default function HomePage() {
       onClick: () => message.info('个人资料功能开发中...')
     },
     {
+      key: 'plan-details',
+      label: (
+        <div className={styles.menuItem}>
+          <Target size={16} />
+          <span>查看计划详情</span>
+        </div>
+      ),
+      onClick: () => handleViewPlanDetails(),
+      disabled: !studyPlan
+    },
+    {
+      key: 'delete-plan',
+      label: (
+        <div className={styles.menuItem} style={{ color: '#ff4d4f' }}>
+          <Settings size={16} />
+          <span>删除当前计划</span>
+        </div>
+      ),
+      onClick: () => handleDeletePlan(),
+      disabled: !studyPlan
+    },
+    {
+      type: 'divider' as const
+    },
+    {
       key: 'settings',
       label: (
         <div className={styles.menuItem}>
@@ -153,9 +178,6 @@ export default function HomePage() {
         </div>
       ),
       onClick: () => message.info('设置功能开发中...')
-    },
-    {
-      type: 'divider' as const
     },
     {
       key: 'logout',
@@ -425,7 +447,7 @@ export default function HomePage() {
               </div>
             </div>
             
-            {isCalendarExpanded && <StudyCalendar dailyPlans={[]} />}
+            {isCalendarExpanded && <StudyCalendarNew planId={studyPlan?.id || null} />}
           </div>
         )}
 
