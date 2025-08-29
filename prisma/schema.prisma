@@ -43,7 +43,6 @@ model Problem {
 
   // 关联
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  studyRecords StudyRecord[]
   leetcodeProblem LeetCodeProblem? @relation(fields: [leetcodeId], references: [id])  // 添加这行
    
 
@@ -59,10 +58,14 @@ model StudyRecord {
   timeSpent   Int       @default(0) @map("time_spent") // 分钟
   reviewCount Int       @default(0) @map("review_count")
   createdAt   DateTime  @default(now()) @map("created_at")
-
-  // 关联
+  completed   Boolean  @default(false)  // 需要这个
+  notes       String?  // 添加这一行
+  lastReviewDate DateTime? @map("last_review_date")  // 可能需要这个
+  
+ 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  leetcodeProblem LeetCodeProblem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+ 
 
   @@map("study_records")
 }
@@ -126,6 +129,7 @@ model LeetCodeProblem {
 
   // 关联
   problems    Problem[]
+  studyRecords StudyRecord[]  // 添加这行
 
   @@map("leetcode_problems")
 }

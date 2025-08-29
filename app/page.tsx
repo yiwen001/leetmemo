@@ -38,6 +38,8 @@ export default function HomePage() {
   const [createPlanLoading, setCreatePlanLoading] = useState(false)
   const [problems, setProblems] = useState<Problem[]>([])
   const [expandedNotes, setExpandedNotes] = useState<string | null>(null)
+  const [editingNotes, setEditingNotes] = useState<string | null>(null)
+  const [noteText, setNoteText] = useState('')
   const [dataLoading, setDataLoading] = useState(true)
   const [studyPlan, setStudyPlan] = useState<any>(null)
   const [generator] = useState(new StudyPlanGenerator())
@@ -200,26 +202,99 @@ export default function HomePage() {
   // 切换笔记预览
   const toggleNotePreview = (problemId: string) => {
     setExpandedNotes(expandedNotes === problemId ? null : problemId)
+    setEditingNotes(null) // 关闭编辑模式
+  }
+
+  // 开始编辑笔记
+  const startEditingNotes = (problemId: string, currentNotes: string) => {
+    setEditingNotes(problemId)
+    setNoteText(currentNotes)
+  }
+
+  // 保存笔记
+  const saveNotes = async (problemId: string) => {
+    if (!studyPlan?.id) return
+
+    try {
+      const response = await fetch(`/api/study-plans/${studyPlan.id}/update-notes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          problemId: problemId.split('-').slice(2).join('-'), // 从复合ID中提取problemId
+          notes: noteText
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        // 更新本地状态
+        setProblems(prev =>
+          prev.map(p =>
+            p.id === problemId ? { ...p, notes: noteText } : p
+          )
+        )
+
+        message.success('笔记保存成功！')
+        setEditingNotes(null)
+      } else {
+        message.error(result.error || '保存失败')
+      }
+    } catch (error) {
+      console.error('保存笔记失败:', error)
+      message.error('保存失败，请重试')
+    }
   }
 
   // 标记完成复习
-  const handleCompleteReview = (problemId: string) => {
-    setProblems(prev => 
-      prev.map(problem => 
-        problem.id === problemId 
-          ? { 
-              ...problem, 
-              reviewCount: problem.reviewCount + 1,
-              completed: true
-            }
-          : problem
-      )
-    )
-    
-    message.success('复习完成！')
-    
-    if (expandedNotes === problemId) {
-      setExpandedNotes(null)
+  const handleCompleteReview = async (problemId: string) => {
+    if (!studyPlan?.id) return
+
+    const problem = problems.find(p => p.id === problemId)
+    if (!problem) return
+
+    try {
+      const response = await fetch(`/api/study-plans/${studyPlan.id}/complete-task`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          taskId: problem.id.split('-')[0], // 从复合ID中提取taskId
+          problemId: problem.id.split('-').slice(2).join('-'), // 从复合ID中提取problemId
+          type: problem.reviewCount === 0 ? 'new' : 'review'
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        // 更新本地状态
+        setProblems(prev =>
+          prev.map(p =>
+            p.id === problemId
+              ? {
+                  ...p,
+                  reviewCount: p.reviewCount + 1,
+                  completed: true
+                }
+              : p
+          )
+        )
+
+        message.success('复习完成！')
+
+        if (expandedNotes === problemId) {
+          setExpandedNotes(null)
+        }
+      } else {
+        message.error(result.error || '标记失败')
+      }
+    } catch (error) {
+      console.error('标记完成失败:', error)
+      message.error('标记失败，请重试')
     }
   }
 
@@ -458,16 +533,90 @@ export default function HomePage() {
                   {expandedNotes === problem.id && (
                     <div className={styles.notePreview}>
                       <div className={styles.noteContent}>
-                        {problem.notes ? (
-                          <pre className={styles.noteText}>{problem.notes}</pre>
-                        ) : (
-                          <div className={styles.noNotes}>
-                            <p>暂无笔记</p>
-                            <button className={styles.addNoteButton}>
-                              <Plus size={14} />
-                              添加学习笔记
-                            </button>
+                        {editingNotes === problem.id ? (
+                          // 编辑模式
+                          <div>
+                            <textarea
+                              value={noteText}
+                              onChange={(e) => setNoteText(e.target.value)}
+                              placeholder="在这里记录你的解题思路、遇到的问题、学到的知识点..."
+                              style={{
+                                width: '100%',
+                                minHeight: '100px',
+                                padding: '8px',
+                                border: '1px solid #ddd',
+                                borderRadius: '4px',
+                                fontSize: '14px',
+                                fontFamily: 'inherit',
+                                resize: 'vertical'
+                              }}
+                            />
+                            <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
+                              <button
+                                onClick={() => saveNotes(problem.id)}
+                                style={{
+                                  padding: '4px 12px',
+                                  backgroundColor: '#1890ff',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  fontSize: '12px'
+                                }}
+                              >
+                                保存
+                              </button>
+                              <button
+                                onClick={() => setEditingNotes(null)}
+                                style={{
+                                  padding: '4px 12px',
+                                  backgroundColor: '#f5f5f5',
+                                  color: '#666',
+                                  border: '1px solid #ddd',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  fontSize: '12px'
+                                }}
+                              >
+                                取消
+                              </button>
+                            </div>
                           </div>
+                        ) : (
+                          // 预览模式
+                          <>
+                            {problem.notes ? (
+                              <div>
+                                <pre className={styles.noteText}>{problem.notes}</pre>
+                                <button
+                                  onClick={() => startEditingNotes(problem.id, problem.notes)}
+                                  style={{
+                                    marginTop: '8px',
+                                    padding: '4px 12px',
+                                    backgroundColor: '#f5f5f5',
+                                    color: '#666',
+                                    border: '1px solid #ddd',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '12px'
+                                  }}
+                                >
+                                  编辑笔记
+                                </button>
+                              </div>
+                            ) : (
+                              <div className={styles.noNotes}>
+                                <p>暂无笔记</p>
+                                <button
+                                  className={styles.addNoteButton}
+                                  onClick={() => startEditingNotes(problem.id, '')}
+                                >
+                                  <Plus size={14} />
+                                  添加学习笔记
+                                </button>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
