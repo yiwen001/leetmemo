@@ -68,11 +68,16 @@ export async function POST(request: Request) {
       }, { status: 400 })
     }
 
+    // 处理开始日期，避免时区问题
+    const parsedStartDate = new Date(startDate + 'T00:00:00.000Z')
+    console.log('Original startDate:', startDate)
+    console.log('Parsed startDate:', parsedStartDate)
+    
     // 创建学习计划
     const studyPlan = await prisma.studyPlan.create({
       data: {
         userId: session.user.id,
-        startDate: new Date(startDate),
+        startDate: parsedStartDate,
         duration,
         intensity,
         planProblems,
@@ -82,7 +87,7 @@ export async function POST(request: Request) {
     })
 
     // 生成每日任务
-    await generateDailyTasks(studyPlan.id, planProblems, duration, intensity, new Date(startDate))
+    await generateDailyTasks(studyPlan.id, planProblems, duration, intensity, parsedStartDate)
 
     return NextResponse.json({
       success: true,
@@ -112,7 +117,9 @@ async function generateDailyTasks(
 
   for (let day = 1; day <= duration; day++) {
     const currentDate = new Date(startDate)
-    currentDate.setDate(startDate.getDate() + day - 1)
+    currentDate.setDate(currentDate.getDate() + day - 1)
+    // 确保时间设置为当天的开始
+    currentDate.setHours(0, 0, 0, 0)
 
     // 计算当天的新题目
     const startIndex = (day - 1) * dailyNewCount

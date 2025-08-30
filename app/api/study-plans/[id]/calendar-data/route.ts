@@ -125,7 +125,7 @@ export async function GET(
 
       return {
         day: task.day,
-        date: task.originalDate.toISOString().split('T')[0], // YYYY-MM-DD格式
+        date: task.currentDate.toISOString().split('T')[0], // 使用currentDate作为显示日期
         currentDate: task.currentDate.toISOString().split('T')[0],
         newProblems,
         reviewProblems,

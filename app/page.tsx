@@ -107,9 +107,12 @@ export default function HomePage() {
           const todayResponse = await fetch(`/api/study-plans/${plan.id}/today-tasks`)
           const todayResult = await todayResponse.json()
 
+          // 无论今日是否有任务，都设置计划存在
+          setStudyPlan(plan)
           if (todayResult.success) {
-            setStudyPlan(plan)
             setProblems(todayResult.tasks || [])
+          } else {
+            setProblems([])
           }
         }
       }
@@ -510,7 +513,7 @@ export default function HomePage() {
             </h2>
             <div className={styles.sectionMeta}>
               <span className={styles.badge}>
-                {dataLoading ? '...' : `${uncompletedCount} 道待完成`}
+                {dataLoading ? '...' : studyPlan ? `${uncompletedCount} 道待完成` : '暂无计划'}
               </span>
               {studyPlan && (
                 <span className={styles.planInfo}>
@@ -526,7 +529,7 @@ export default function HomePage() {
               <div className={styles.loadingState}>
                 <div className={styles.loadingSpinner}>加载中...</div>
               </div>
-            ) : sortedProblems.length === 0 ? (
+            ) : !studyPlan ? (
               <div className={styles.emptyState}>
                 <Target size={48} color="#ccc" />
                 <h3>还没有学习计划</h3>
@@ -538,6 +541,12 @@ export default function HomePage() {
                   <Plus size={16} />
                   创建第一个计划
                 </button>
+              </div>
+            ) : sortedProblems.length === 0 ? (
+              <div className={styles.emptyState}>
+                <Calendar size={48} color="#52c41a" />
+                <h3>今日暂无学习任务</h3>
+                <p>休息一下，明天继续加油！</p>
               </div>
             ) : (
               sortedProblems.map((problem) => (
