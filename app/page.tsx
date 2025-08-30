@@ -10,11 +10,9 @@ import { useRouter } from 'next/navigation'
 import 'antd/dist/reset.css'
 
 // 导入新组件
-import CreatePlanModal from './components/CreatePlanModal/page'
 import CreatePlanModalNew from './components/CreatePlanModal/CreatePlanModalNew'
+import PlanDetailsModal from './components/PlanDetailsModal/PlanDetailsModal'
 import ProgressStats from './components/ProgressStats/ProgressStats'
-import { StudyPlanGenerator } from '../lib/study-plan-generator'
-import { DEFAULT_PLAN_CONFIG } from '../lib/default-study-plan'
 import StudyCalendarNew from './components/StudyCalendar/StudyCalendarNew'
 
 // 定义数据类型
@@ -34,7 +32,9 @@ export default function HomePage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [isCreatePlanModalOpen, setIsCreatePlanModalOpen] = useState(false)
- 
+  const [isPlanDetailsModalOpen, setIsPlanDetailsModalOpen] = useState(false)
+  const [planDetailsData, setPlanDetailsData] = useState(null)
+  const [planDetailsLoading, setPlanDetailsLoading] = useState(false)
   const [createPlanLoading, setCreatePlanLoading] = useState(false)
   const [problems, setProblems] = useState<Problem[]>([])
   const [expandedNotes, setExpandedNotes] = useState<string | null>(null)
@@ -42,7 +42,7 @@ export default function HomePage() {
   const [noteText, setNoteText] = useState('')
   const [dataLoading, setDataLoading] = useState(true)
   const [studyPlan, setStudyPlan] = useState<any>(null)
- 
+
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(true)
 
   // 使用 useEffect 处理重定向
@@ -119,7 +119,81 @@ export default function HomePage() {
     }
   }
 
+  // 查看计划详情
+  const handleViewPlanDetails = async () => {
+    setIsPlanDetailsModalOpen(true)
+    
+    if (!studyPlan?.id) {
+      // 没有计划时显示空状态的详情页
+      setPlanDetailsData(null)
+      setPlanDetailsLoading(false)
+      return
+    }
 
+    setPlanDetailsLoading(true)
+
+    try {
+      const response = await fetch(`/api/study-plans/${studyPlan.id}/details`)
+      const result = await response.json()
+
+      if (result.success) {
+        setPlanDetailsData(result.data)
+      } else {
+        message.error(result.error || '获取计划详情失败')
+        setIsPlanDetailsModalOpen(false)
+      }
+    } catch (error) {
+      console.error('获取计划详情失败:', error)
+      message.error('获取计划详情失败，请重试')
+      setIsPlanDetailsModalOpen(false)
+    } finally {
+      setPlanDetailsLoading(false)
+    }
+  }
+
+  // 删除当前计划
+  const handleDeletePlan = () => {
+    if (!studyPlan?.id) {
+      message.warning('当前没有活跃的学习计划')
+      return
+    }
+
+    Modal.confirm({
+      title: '确认删除学习计划',
+      content: (
+        <div>
+          <p>确定要删除当前的学习计划吗？</p>
+          <p style={{ color: '#ff4d4f', fontSize: '14px' }}>
+            ⚠️ 此操作不可撤销，将删除所有相关的学习记录和进度数据。
+          </p>
+        </div>
+      ),
+      okText: '确认删除',
+      cancelText: '取消',
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          const response = await fetch(`/api/study-plans/${studyPlan.id}/delete`, {
+            method: 'DELETE'
+          })
+
+          const result = await response.json()
+
+          if (result.success) {
+            message.success('学习计划删除成功')
+            // 重置状态
+            setStudyPlan(null)
+            setProblems([])
+          } else {
+            message.error(result.error || '删除失败')
+          }
+        } catch (error) {
+          console.error('删除计划失败:', error)
+          message.error('删除失败，请重试')
+        }
+      }
+    })
+  }
 
   // 如果未认证，返回 null
   if (status === 'unauthenticated') {
@@ -143,28 +217,6 @@ export default function HomePage() {
         </div>
       ),
       onClick: () => message.info('个人资料功能开发中...')
-    },
-    {
-      key: 'plan-details',
-      label: (
-        <div className={styles.menuItem}>
-          <Target size={16} />
-          <span>查看计划详情</span>
-        </div>
-      ),
-      onClick: () => handleViewPlanDetails(),
-      disabled: !studyPlan
-    },
-    {
-      key: 'delete-plan',
-      label: (
-        <div className={styles.menuItem} style={{ color: '#ff4d4f' }}>
-          <Settings size={16} />
-          <span>删除当前计划</span>
-        </div>
-      ),
-      onClick: () => handleDeletePlan(),
-      disabled: !studyPlan
     },
     {
       type: 'divider' as const
@@ -191,8 +243,8 @@ export default function HomePage() {
     }
   ]
 
-   // 创建新计划
-   const handleCreatePlan = async (planData: any) => {
+  // 创建新计划
+  const handleCreatePlan = async (planData: any) => {
     setCreatePlanLoading(true)
     try {
       const response = await fetch('/api/study-plans/create', {
@@ -360,8 +412,6 @@ export default function HomePage() {
     )
   }
 
- 
-
   // 计算统计数据
   const completedProblems = problems.filter(p => p.completed).length
   const totalProblems = studyPlan?.projectInfo?.totalProblems || 0
@@ -377,10 +427,10 @@ export default function HomePage() {
           <div className={styles.navRight}>
             <button 
               className={styles.addButton}
-              onClick={() => setIsCreatePlanModalOpen(true)}
+              onClick={() => handleViewPlanDetails()}
             >
               <Target size={18} />
-              新建计划
+              计划详情
             </button>
             <Link href="/problems" className={styles.navLink}>
               所有题目
@@ -656,6 +706,19 @@ export default function HomePage() {
         onCancel={() => setIsCreatePlanModalOpen(false)}
         onSubmit={handleCreatePlan}
         loading={createPlanLoading}
+      />
+
+      {/* 计划详情Modal */}
+      <PlanDetailsModal
+        visible={isPlanDetailsModalOpen}
+        onClose={() => {
+          setIsPlanDetailsModalOpen(false)
+          setPlanDetailsData(null)
+        }}
+        data={planDetailsData}
+        loading={planDetailsLoading}
+        onDeletePlan={handleDeletePlan}
+        onCreatePlan={() => setIsCreatePlanModalOpen(true)}
       />
     </div>
   )
