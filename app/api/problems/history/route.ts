@@ -168,3 +168,34 @@ export async function PATCH(request: NextRequest) {
     }, { status: 500 })
   }
 }
+
+// 清空所有学习历史
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '未登录' }, { status: 401 })
+    }
+
+    // 删除用户的所有学习记录
+    const deletedRecords = await prisma.studyRecord.deleteMany({
+      where: {
+        userId: session.user.id
+      }
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: `已清空 ${deletedRecords.count} 条学习记录`,
+      deletedCount: deletedRecords.count
+    })
+
+  } catch (error) {
+    console.error('清空学习历史失败:', error)
+    return NextResponse.json({
+      success: false,
+      error: '清空失败'
+    }, { status: 500 })
+  }
+}

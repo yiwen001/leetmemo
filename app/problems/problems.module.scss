@@ -63,6 +63,12 @@
   .searchInput {
     width: 100%;
   }
+
+  .toolBarRight {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
   
   .sortArea {
     display: flex;
@@ -99,10 +105,7 @@
     overflow: hidden;
     transition: transform 0.2s, box-shadow 0.2s;
     
-    &:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-    }
+   
   }
   
   .cardHeader {
@@ -354,6 +357,37 @@
     font-weight: 500;
     background-color: #D1FAE5;
     color: #065F46;
+  }
+
+  // 清空历史按钮
+  .clearAllButton {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: 1px solid #F87171;
+    background-color: transparent;
+    color: #F87171;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover:not(:disabled) {
+      background-color: #FEE2E2;
+      border-color: #DC2626;
+      color: #DC2626;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    svg {
+      flex-shrink: 0;
+    }
   }
   
   // 编辑笔记模态框

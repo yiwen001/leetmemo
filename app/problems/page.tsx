@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Trash2, Edit2, Search, FileText, Calendar, RefreshCw, Loader } from 'lucide-react'
+import { ArrowLeft, Trash2, Edit2, Search, FileText, Calendar, RefreshCw, Loader, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 import { Modal, Input, message, Popconfirm, Select } from 'antd'
 import ReactMarkdown from 'react-markdown'
@@ -128,6 +128,28 @@ export default function ProblemsPage() {
     message.info('历史记录不支持删除，如需管理题目请在学习计划中操作');
   };
 
+  // 清空所有学习历史
+  const handleClearAllHistory = async () => {
+    try {
+      const response = await fetch('/api/problems/history', {
+        method: 'DELETE'
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setProblems([]);
+        setTotal(0);
+        message.success(data.message);
+      } else {
+        message.error('清空失败');
+      }
+    } catch (error) {
+      console.error('清空学习历史失败:', error);
+      message.error('清空失败');
+    }
+  };
+
   // 切换编辑/预览模式
   const togglePreviewMode = () => {
     setIsPreviewMode(!isPreviewMode);
@@ -159,22 +181,45 @@ export default function ProblemsPage() {
               className={styles.searchInput}
             />
           </div>
-          <div className={styles.sortArea}>
-            <span className={styles.sortLabel}>排序: </span>
-            <Select 
-              value={sortOption}
-              onChange={(value: SortOption) => setSortOption(value)}
-              className={styles.sortSelect}
-              options={[
-                { value: 'newest', label: '最近添加' },
-                { value: 'oldest', label: '最早添加' },
-                { value: 'most-reviewed', label: '复习次数最多' },
-                { value: 'least-reviewed', label: '复习次数最少' },
-                { value: 'recently-reviewed', label: '最近复习' },
-                { value: 'title-asc', label: '题目名称 A-Z' },
-                { value: 'title-desc', label: '题目名称 Z-A' },
-              ]}
-            />
+          <div className={styles.toolBarRight}>
+            <div className={styles.sortArea}>
+              <span className={styles.sortLabel}>排序: </span>
+              <Select 
+                value={sortOption}
+                onChange={(value: SortOption) => setSortOption(value)}
+                className={styles.sortSelect}
+                options={[
+                  { value: 'newest', label: '最近添加' },
+                  { value: 'oldest', label: '最早添加' },
+                  { value: 'most-reviewed', label: '复习次数最多' },
+                  { value: 'least-reviewed', label: '复习次数最少' },
+                  { value: 'recently-reviewed', label: '最近复习' },
+                  { value: 'title-asc', label: '题目名称 A-Z' },
+                  { value: 'title-desc', label: '题目名称 Z-A' },
+                ]}
+              />
+            </div>
+            <Popconfirm
+              title="清空学习历史"
+              description={
+                <div>
+                  <p>确定要清空所有学习历史吗？</p>
+                  <p style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>
+                    ⚠️ 此操作不可撤销，将删除所有学习记录和笔记
+                  </p>
+                </div>
+              }
+              onConfirm={handleClearAllHistory}
+              okText="确定清空"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+              icon={<AlertTriangle size={16} />}
+            >
+              <button className={styles.clearAllButton} disabled={loading || total === 0}>
+                <AlertTriangle size={16} />
+                清空历史
+              </button>
+            </Popconfirm>
           </div>
         </div>
         
