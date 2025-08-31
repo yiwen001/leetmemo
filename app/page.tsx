@@ -436,7 +436,7 @@ export default function HomePage() {
               计划详情
             </button>
             <Link href="/problems" className={styles.navLink}>
-              所有题目
+              学习历史
             </Link>
             {/* 用户信息 */}
             <Dropdown 

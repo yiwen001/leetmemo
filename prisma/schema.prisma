@@ -53,20 +53,23 @@ model StudyRecord {
   id          String    @id @default(cuid())
   userId      String    @map("user_id")
   problemId   String    @map("problem_id")
+  studyPlanId String?   @map("study_plan_id") // 关联到具体的学习计划
   completedAt DateTime? @map("completed_at")
   difficulty  String    @default("medium")
   timeSpent   Int       @default(0) @map("time_spent") // 分钟
   reviewCount Int       @default(0) @map("review_count")
   createdAt   DateTime  @default(now()) @map("created_at")
-  completed   Boolean  @default(false)  // 需要这个
-  notes       String?  // 添加这一行
-  lastReviewDate DateTime? @map("last_review_date")  // 可能需要这个
+  completed   Boolean   @default(false)
+  notes       String?   @default("")
+  lastReviewDate DateTime? @map("last_review_date")
+  firstStudyDate DateTime @default(now()) @map("first_study_date") // 首次学习日期
   
- 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // 关联
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   leetcodeProblem LeetCodeProblem @relation(fields: [problemId], references: [id], onDelete: Cascade)
- 
+  studyPlan       StudyPlan?   @relation(fields: [studyPlanId], references: [id], onDelete: SetNull)
 
+  @@unique([userId, problemId]) // 确保每个用户每道题只有一条记录
   @@map("study_records")
 }
 
@@ -89,8 +92,9 @@ model StudyPlan {
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   // 关联
-  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   dailyTasks      DailyTask[]
+  studyRecords    StudyRecord[] // 添加反向关联
 
   @@map("study_plans")
 }

@@ -281,7 +281,7 @@
     }
   }
   
-  // 空状态
+  // 空状态和加载状态
   .emptyState {
     grid-column: 1 / -1;
     padding: 60px 0;
@@ -291,6 +291,69 @@
     background-color: white;
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  .emptyHint {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--text-gray);
+  }
+
+  .loadingState {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--text-gray);
+    
+    &.problemCards {
+      grid-column: 1 / -1;
+      padding: 60px 0;
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+  }
+
+  .spinner {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  // 难度和状态徽章
+  .difficultyBadge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    
+    &.easy {
+      background-color: #D1FAE5;
+      color: #065F46;
+    }
+    
+    &.medium {
+      background-color: #FEF3C7;
+      color: #92400E;
+    }
+    
+    &.hard {
+      background-color: #FEE2E2;
+      color: #991B1B;
+    }
+  }
+
+  .completedBadge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    background-color: #D1FAE5;
+    color: #065F46;
   }
   
   // 编辑笔记模态框

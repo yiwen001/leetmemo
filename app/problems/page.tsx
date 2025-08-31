@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { ArrowLeft, Trash2, Edit2, Search, FileText, Calendar, RefreshCw } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ArrowLeft, Trash2, Edit2, Search, FileText, Calendar, RefreshCw, Loader } from 'lucide-react'
 import Link from 'next/link'
 import { Modal, Input, message, Popconfirm, Select } from 'antd'
 import ReactMarkdown from 'react-markdown'
@@ -10,72 +10,72 @@ import rehypeRaw from 'rehype-raw'
 import remarkGfm from 'remark-gfm'
 import styles from './problems.module.scss'
 
-import { DEFAULT_PROBLEMS } from '@/lib/default-study-plan';
-
-// 将默认题目转换为应用所需格式
-const getDefaultProblems = () => {
-  const today = new Date().toISOString().split('T')[0];
-  return DEFAULT_PROBLEMS.map((problem, index) => {
-    // 从题目名称中提取标题（移除LeetCode和题号）
-    const title = problem.name.replace(/^LeetCode \d+\.\s*/, '');
-    // 从URL中提取题号
-    const numberMatch = problem.url.match(/\/(\d+)[\/-]/);
-    const number = numberMatch ? parseInt(numberMatch[1], 10) : index + 1;
-    
-    return {
-      id: `problem-${number}`,
-      number,
-      title,
-      url: problem.url,
-      reviewCount: 0, // 初始复习次数为0
-      lastReviewDate: today, // 使用今天作为最后复习日期
-      addedDate: today, // 使用今天作为添加日期
-      notes: '', // 初始没有笔记
-    };
-  });
-};
-
-const defaultProblems = getDefaultProblems();
+interface Problem {
+  id: string
+  number: number
+  title: string
+  url: string
+  reviewCount: number
+  lastReviewDate: string
+  addedDate: string
+  notes: string
+  difficulty: string
+  completed: boolean
+  timeSpent: number
+  studyPlan?: {
+    id: string
+    startDate: string
+    status: string
+  } | null
+}
 
 // 排序选项
 type SortOption = 'newest' | 'oldest' | 'most-reviewed' | 'least-reviewed' | 'recently-reviewed' | 'title-asc' | 'title-desc';
 
 export default function ProblemsPage() {
-  const [problems, setProblems] = useState(defaultProblems);
+  const [problems, setProblems] = useState<Problem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [currentNotes, setCurrentNotes] = useState('');
   const [currentProblemId, setCurrentProblemId] = useState<string | null>(null);
   const [sortOption, setSortOption] = useState<SortOption>('newest');
   const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
 
-  // 过滤和排序问题
-  const filteredProblems = problems.filter(problem => 
-    problem.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    problem.notes.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // 排序
-  const sortedProblems = [...filteredProblems].sort((a, b) => {
-    switch (sortOption) {
-      case 'newest':
-        return new Date(b.addedDate).getTime() - new Date(a.addedDate).getTime();
-      case 'oldest':
-        return new Date(a.addedDate).getTime() - new Date(b.addedDate).getTime();
-      case 'most-reviewed':
-        return b.reviewCount - a.reviewCount;
-      case 'least-reviewed':
-        return a.reviewCount - b.reviewCount;
-      case 'recently-reviewed':
-        return new Date(b.lastReviewDate).getTime() - new Date(a.lastReviewDate).getTime();
-      case 'title-asc':
-        return a.title.localeCompare(b.title);
-      case 'title-desc':
-        return b.title.localeCompare(a.title);
-      default:
-        return 0;
+  // 从API获取历史题目数据
+  const fetchProblems = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        search: searchTerm,
+        sortBy: sortOption,
+        limit: '100' // 获取更多数据
+      });
+      
+      const response = await fetch(`/api/problems/history?${params}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setProblems(data.problems);
+        setTotal(data.total);
+      } else {
+        message.error('获取题目失败');
+      }
+    } catch (error) {
+      console.error('获取题目失败:', error);
+      message.error('获取题目失败');
+    } finally {
+      setLoading(false);
     }
-  });
+  };
+
+  // 初始加载和搜索/排序变化时重新获取
+  useEffect(() => {
+    fetchProblems();
+  }, [searchTerm, sortOption]);
+
+  const sortedProblems = problems; // API已经处理了排序
 
   // 打开编辑笔记模态框
   const openEditModal = (problemId: string, notes: string) => {
@@ -86,25 +86,46 @@ export default function ProblemsPage() {
   };
 
   // 保存笔记
-  const saveNotes = () => {
+  const saveNotes = async () => {
     if (!currentProblemId) return;
     
-    setProblems(prev => 
-      prev.map(problem => 
-        problem.id === currentProblemId 
-          ? { ...problem, notes: currentNotes }
-          : problem
-      )
-    );
-    
-    setIsEditModalOpen(false);
-    message.success('笔记已更新');
+    try {
+      const response = await fetch('/api/problems/history', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          recordId: currentProblemId,
+          notes: currentNotes
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // 更新本地状态
+        setProblems((prev: Problem[]) => 
+          prev.map((problem: Problem) => 
+            problem.id === currentProblemId 
+              ? { ...problem, notes: currentNotes }
+              : problem
+          )
+        );
+        setIsEditModalOpen(false);
+        message.success('笔记已更新');
+      } else {
+        message.error('更新失败');
+      }
+    } catch (error) {
+      console.error('更新笔记失败:', error);
+      message.error('更新失败');
+    }
   };
 
-  // 删除题目
+  // 删除题目功能暂时禁用，因为这是历史记录
   const handleDelete = (problemId: string) => {
-    setProblems(prev => prev.filter(problem => problem.id !== problemId));
-    message.success('题目已删除');
+    message.info('历史记录不支持删除，如需管理题目请在学习计划中操作');
   };
 
   // 切换编辑/预览模式
@@ -158,14 +179,27 @@ export default function ProblemsPage() {
         </div>
         
         <div className={styles.problemCount}>
-          共 {problems.length} 道题目，显示 {sortedProblems.length} 道
+          {loading ? (
+            <div className={styles.loadingState}>
+              <Loader className={styles.spinner} size={16} />
+              <span>加载中...</span>
+            </div>
+          ) : (
+            `共 ${total} 道题目，显示 ${sortedProblems.length} 道`
+          )}
         </div>
 
         {/* 卡片布局 */}
         <div className={styles.problemCards}>
-          {sortedProblems.length === 0 ? (
+          {loading ? (
+            <div className={styles.loadingState}>
+              <Loader className={styles.spinner} size={24} />
+              <p>正在加载历史题目...</p>
+            </div>
+          ) : sortedProblems.length === 0 ? (
             <div className={styles.emptyState}>
               <p>没有找到匹配的题目</p>
+              <p className={styles.emptyHint}>开始学习计划后，完成的题目会在这里显示</p>
             </div>
           ) : (
             sortedProblems.map(problem => (
@@ -219,6 +253,17 @@ export default function ProblemsPage() {
                     <FileText size={14} />
                     <span>添加: {problem.addedDate}</span>
                   </div>
+                  <div className={styles.metaItem}>
+                    <span className={`${styles.difficultyBadge} ${styles[problem.difficulty]}`}>
+                      {problem.difficulty === 'easy' ? '简单' : 
+                       problem.difficulty === 'medium' ? '中等' : '困难'}
+                    </span>
+                  </div>
+                  {problem.completed && (
+                    <div className={styles.metaItem}>
+                      <span className={styles.completedBadge}>已完成</span>
+                    </div>
+                  )}
                 </div>
                 <div className={styles.cardContent}>
                   <div className={styles.notes}>
