@@ -4,6 +4,10 @@ import { useState, useEffect } from 'react'
 import { Calendar, Plus, BookOpen, ChevronDown, ChevronUp, User, LogOut, Settings, Target, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import { Modal, message, Dropdown } from 'antd'
+import ReactMarkdown from 'react-markdown'
+import rehypeSanitize from 'rehype-sanitize'
+import rehypeRaw from 'rehype-raw'
+import remarkGfm from 'remark-gfm'
 import styles from './page.module.sass'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
@@ -668,7 +672,14 @@ export default function HomePage() {
                           <>
                             {problem.notes ? (
                               <div>
-                                <pre className={styles.noteText}>{problem.notes}</pre>
+                                <div className={`  ${styles.notesMarkdown}`}>
+                                  <ReactMarkdown
+                                    rehypePlugins={[rehypeSanitize, rehypeRaw]}
+                                    remarkPlugins={[remarkGfm]}
+                                  >
+                                    {problem.notes}
+                                  </ReactMarkdown>
+                                </div>
                                 <button
                                   onClick={() => startEditingNotes(problem.id, problem.notes)}
                                   style={{

@@ -246,10 +246,80 @@
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace
   font-size: 13px
   line-height: 1.5
+
+// Markdown笔记样式 - 与学习历史页面保持一致
+.notesMarkdown
   color: var(--text-color)
-  white-space: pre-wrap
-  word-wrap: break-word
-  margin: 0
+  font-size: 14px
+  line-height: 1.6
+  
+  h1, h2, h3, h4, h5, h6
+    margin-top: 16px
+    margin-bottom: 12px
+    color: var(--text-color)
+    font-weight: 600
+  
+  h1
+    font-size: 1.5em
+  h2
+    font-size: 1.4em
+  h3
+    font-size: 1.3em
+  h4
+    font-size: 1.2em
+  h5
+    font-size: 1.1em
+  h6
+    font-size: 1em
+  
+  p
+    margin-bottom: 12px
+  
+  ul, ol
+    margin-left: 20px
+    margin-bottom: 12px
+  
+  pre
+    background-color: #F3F4F6
+    padding: 12px
+    border-radius: 8px
+    overflow-x: auto
+    margin-bottom: 16px
+  
+  code
+    background-color: #F3F4F6
+    padding: 2px 5px
+    border-radius: 4px
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace
+    font-size: 0.9em
+  
+  img
+    max-width: 100%
+    border-radius: 8px
+    margin: 12px 0
+  
+  blockquote
+    border-left: 4px solid var(--primary-color)
+    padding-left: 16px
+    margin-left: 0
+    color: var(--text-gray)
+    font-style: italic
+  
+  table
+    width: 100%
+    border-collapse: collapse
+    margin: 16px 0
+    
+    th, td
+      border: 1px solid var(--border-color)
+      padding: 8px 12px
+      text-align: left
+    
+    th
+      background-color: #F9FAFB
+    
+    tr:nth-child(even)
+      background-color: #F9FAFB
 
 .noNotes
   color: var(--text-gray)
