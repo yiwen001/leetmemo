@@ -87,12 +87,22 @@ export default function StudyCalendarNew({ planId }: StudyCalendarProps) {
 
     const days = []
     
+    // 格式化日期为 YYYY-MM-DD 格式，避免时区问题
+    const formatDate = (year: number, month: number, day: number) => {
+      return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    }
+    
     // 添加上个月的日期
     for (let i = startingDayOfWeek - 1; i >= 0; i--) {
-      const date = new Date(year, month, -i)
+      const prevMonth = month === 0 ? 11 : month - 1
+      const prevYear = month === 0 ? year - 1 : year
+      const prevMonthDays = new Date(prevYear, prevMonth + 1, 0).getDate()
+      const day = prevMonthDays - i
+      const dateStr = formatDate(prevYear, prevMonth, day)
+      
       days.push({
-        date: date.toISOString().split('T')[0],
-        day: date.getDate(),
+        date: dateStr,
+        day,
         isCurrentMonth: false,
         plan: null
       })
@@ -100,8 +110,7 @@ export default function StudyCalendarNew({ planId }: StudyCalendarProps) {
 
     // 添加当月的日期
     for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month, day)
-      const dateStr = date.toISOString().split('T')[0]
+      const dateStr = formatDate(year, month, day)
       const plan = calendarData.find(p => p.date === dateStr || p.currentDate === dateStr)
       
       days.push({
@@ -115,10 +124,13 @@ export default function StudyCalendarNew({ planId }: StudyCalendarProps) {
     // 添加下个月的日期
     const remainingDays = 42 - days.length
     for (let day = 1; day <= remainingDays; day++) {
-      const date = new Date(year, month + 1, day)
+      const nextMonth = month === 11 ? 0 : month + 1
+      const nextYear = month === 11 ? year + 1 : year
+      const dateStr = formatDate(nextYear, nextMonth, day)
+      
       days.push({
-        date: date.toISOString().split('T')[0],
-        day: date.getDate(),
+        date: dateStr,
+        day: day,
         isCurrentMonth: false,
         plan: null
       })

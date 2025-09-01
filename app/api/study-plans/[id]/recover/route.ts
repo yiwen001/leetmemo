@@ -1,15 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '../../auth/[...nextauth]/route'
+import { authOptions } from '../../../auth/[...nextauth]/route'
 
-// 默认的19道经典题目
-const DEFAULT_PROBLEMS = [
-  'clqv8x9y10000356c8l2m3n4p', // 这些ID需要从实际数据库中获取
-  // 我们先用题目编号来查找
-]
-
-export async function POST(request: Request) {
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
     const session = await getServerSession(authOptions)
     
@@ -18,85 +15,79 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { name, mode, duration, intensity, startDate, selectedProblems } = body
+    const { newDuration, newIntensity } = body
 
-    // 验证必填字段
-    if (!name || !duration || !intensity || !startDate) {
+    if (!newDuration || !newIntensity) {
       return NextResponse.json({ 
         success: false, 
-        error: '缺少必填字段' 
+        error: '缺少必填参数' 
       }, { status: 400 })
     }
 
-    // 检查用户是否已有活跃计划
-    const existingPlan = await prisma.studyPlan.findFirst({
+    const planId = params.id
+
+    // 查找被销毁的计划
+    const destroyedPlan = await prisma.studyPlan.findFirst({
       where: {
+        id: planId,
         userId: session.user.id,
-        status: 'active'
+        status: 'destroyed'
       }
     })
 
-    if (existingPlan) {
+    if (!destroyedPlan) {
       return NextResponse.json({ 
         success: false, 
-        error: '您已有活跃的学习计划，请先完成或删除现有计划' 
+        error: '计划不存在或状态不正确' 
+      }, { status: 404 })
+    }
+
+    // 计算未完成的题目
+    const allPlanProblems = destroyedPlan.planProblems
+    const learnedProblems = destroyedPlan.learnedProblems
+    const remainingProblems = allPlanProblems.filter(id => !learnedProblems.includes(id))
+
+    if (remainingProblems.length === 0) {
+      return NextResponse.json({ 
+        success: false, 
+        error: '所有题目已完成，无需恢复计划' 
       }, { status: 400 })
     }
 
-    let planProblems: string[] = []
+    // 删除旧的日常任务
+    await prisma.dailyTask.deleteMany({
+      where: { planId: planId }
+    })
 
-    if (mode === 'default') {
-      // 使用默认的19道题目
-      const defaultProblems = await prisma.leetCodeProblem.findMany({
-        where: {
-          number: {
-            in: [1, 15, 26, 53, 121, 2, 21, 206, 141, 142, 3, 5, 20, 125, 242, 94, 104, 226, 102] // 前19道经典题目
-          }
-        },
-        select: { id: true }
-      })
-      planProblems = defaultProblems.map(p => p.id)
-    } else {
-      // 使用用户选择的题目
-      planProblems = selectedProblems || []
-    }
+    // 更新计划状态和信息
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
 
-    if (planProblems.length === 0) {
-      return NextResponse.json({ 
-        success: false, 
-        error: '没有可用的题目' 
-      }, { status: 400 })
-    }
-
-    // 处理开始日期，避免时区问题
-    const parsedStartDate = new Date(startDate + 'T00:00:00.000Z')
-    console.log('Original startDate:', startDate)
-    console.log('Parsed startDate:', parsedStartDate)
-    
-    // 创建学习计划
-    const studyPlan = await prisma.studyPlan.create({
+    await prisma.studyPlan.update({
+      where: { id: planId },
       data: {
-        userId: session.user.id,
-        startDate: parsedStartDate,
-        duration,
-        intensity,
-        planProblems,
-        learnedProblems: [],
-        status: 'active'
+        status: 'active',
+        startDate: today,
+        duration: newDuration,
+        intensity: newIntensity,
+        planProblems: remainingProblems, // 只包含未完成的题目
+        pendingTasks: 0
       }
     })
 
-    // 生成每日任务
-    await generateDailyTasks(studyPlan.id, planProblems, duration, intensity, parsedStartDate)
+    // 重新生成每日任务
+    await generateDailyTasks(planId, remainingProblems, newDuration, newIntensity, today)
 
     return NextResponse.json({
       success: true,
-      plan: studyPlan,
-      message: '学习计划创建成功'
+      message: '计划恢复成功',
+      remainingProblems: remainingProblems.length,
+      newDuration,
+      newStartDate: today.toISOString().split('T')[0]
     })
 
   } catch (error) {
-    console.error('创建学习计划失败:', error)
+    console.error('恢复计划失败:', error)
     return NextResponse.json({
       success: false,
       error: '服务器错误'
@@ -104,7 +95,7 @@ export async function POST(request: Request) {
   }
 }
 
-// 生成每日任务的函数（基于艾宾浩斯遗忘曲线）
+// 生成每日任务的函数（基于你的算法改进）
 async function generateDailyTasks(
   planId: string, 
   problems: string[], 
@@ -122,13 +113,12 @@ async function generateDailyTasks(
   const dailyNewCount = Math.min(config.maxDailyNew, Math.ceil(problems.length / duration))
   
   const tasks = []
-  const reviewIntervals = [1, 3, 7, 15, 30] // 艾宾浩斯遗忘曲线间隔
+  const reviewIntervals = [1, 3, 7, 15, 30] // 艾宾浩斯遗忘曲线
 
   for (let day = 1; day <= duration; day++) {
-    // 纯UTC日期计算
     const currentDate = new Date(startDate)
-    currentDate.setUTCDate(currentDate.getUTCDate() + day - 1)
-    currentDate.setUTCHours(0, 0, 0, 0)
+    currentDate.setDate(currentDate.getDate() + day - 1)
+    currentDate.setHours(0, 0, 0, 0)
 
     // 计算当天的新题目
     const startIndex = (day - 1) * dailyNewCount
@@ -145,13 +135,7 @@ async function generateDailyTasks(
         const studyStartIndex = (studyDay - 1) * dailyNewCount
         const studyEndIndex = Math.min(studyStartIndex + dailyNewCount, problems.length)
         const studyDayProblems = problems.slice(studyStartIndex, studyEndIndex)
-        
-        // 避免重复添加同一题目
-        studyDayProblems.forEach(problemId => {
-          if (!reviewProblems.includes(problemId)) {
-            reviewProblems.push(problemId)
-          }
-        })
+        reviewProblems.push(...studyDayProblems)
       }
     }
 

@@ -16,28 +16,37 @@ export async function GET(
 
     const planId = params.id
     
-    // 获取今天的日期
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    // 后端只使用UTC时间，不做时区转换
+    // 支持测试时的模拟日期
+    let now = new Date()
+    try {
+      const mockModule = await import('../../../debug/set-mock-date/route')
+      now = mockModule.getCurrentDate()
+    } catch (e) {
+      // 如果模拟模块不存在，使用真实时间
+    }
     
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
+    console.log('Looking for tasks on or before UTC date:', now.toISOString().split('T')[0])
 
-    // 查找今天应该完成的所有任务
-    const todayTasks = await prisma.dailyTask.findMany({
+    // 查找今天及之前应该完成的所有任务（未完成的会自动显示）
+    const allRelevantTasks = await prisma.dailyTask.findMany({
       where: {
         planId: planId,
         currentDate: {
-          gte: today,
-          lt: tomorrow
+          lte: now  // 小于等于当前UTC时间的所有任务
         }
       },
       orderBy: { day: 'asc' }
     })
 
+    console.log('Found tasks on or before today:', allRelevantTasks.length, allRelevantTasks.map(t => ({ 
+      day: t.day, 
+      currentDate: t.currentDate.toISOString().split('T')[0] 
+    })))
+
     // 获取所有相关的题目ID
     const allProblemIds: string[] = []
-    todayTasks.forEach(task => {
+    allRelevantTasks.forEach(task => {
       allProblemIds.push(...task.newProblems, ...task.reviewProblems)
     })
 
@@ -56,6 +65,24 @@ export async function GET(
       }
     })
 
+    // 获取今天已完成的任务记录 - 使用UTC时间
+    const todayStart = new Date()
+    todayStart.setUTCHours(0, 0, 0, 0)
+    const todayEndForCompletion = new Date()
+    todayEndForCompletion.setUTCHours(23, 59, 59, 999)
+    
+    const todayCompletedRecords = await prisma.studyRecord.findMany({
+      where: {
+        userId: session.user.id,
+        problemId: { in: allProblemIds },
+        lastReviewDate: {
+          gte: todayStart,
+          lte: todayEndForCompletion
+        },
+        completed: true
+      }
+    })
+
     // 创建题目ID到详情的映射
     const problemMap = new Map()
     problemDetails.forEach(problem => {
@@ -68,15 +95,22 @@ export async function GET(
       recordMap.set(record.problemId, record)
     })
 
+    // 创建今天已完成任务的映射
+    const todayCompletedMap = new Set()
+    todayCompletedRecords.forEach(record => {
+      todayCompletedMap.add(record.problemId)
+    })
+
     // 转换为前端需要的格式
     const tasks = []
     let problemNumber = 1
 
-    for (const task of todayTasks) {
+    for (const task of allRelevantTasks) {
       // 处理新题目
       for (const problemId of task.newProblems) {
         const problemDetail = problemMap.get(problemId)
         const studyRecord = recordMap.get(problemId)
+        const completedToday = todayCompletedMap.has(problemId)
 
         if (problemDetail) {
           tasks.push({
@@ -86,9 +120,9 @@ export async function GET(
             url: problemDetail.url,
             notes: studyRecord?.notes || '',
             reviewCount: studyRecord?.reviewCount || 0,
-            lastReviewDate: studyRecord?.lastReviewDate?.toISOString() || today.toISOString(),
-            completed: studyRecord?.completed || false,
-            addedDate: today.toISOString(),
+            lastReviewDate: studyRecord?.lastReviewDate?.toISOString() || todayStart.toISOString(),
+            completed: completedToday,
+            addedDate: todayStart.toISOString(),
             type: 'new',
             difficulty: problemDetail.difficulty,
             leetcodeNumber: problemDetail.number
@@ -100,6 +134,7 @@ export async function GET(
       for (const problemId of task.reviewProblems) {
         const problemDetail = problemMap.get(problemId)
         const studyRecord = recordMap.get(problemId)
+        const completedToday = todayCompletedMap.has(problemId)
 
         if (problemDetail) {
           tasks.push({
@@ -109,9 +144,9 @@ export async function GET(
             url: problemDetail.url,
             notes: studyRecord?.notes || '',
             reviewCount: (studyRecord?.reviewCount || 0) + 1,
-            lastReviewDate: studyRecord?.lastReviewDate?.toISOString() || today.toISOString(),
-            completed: studyRecord?.completed || false,
-            addedDate: today.toISOString(),
+            lastReviewDate: studyRecord?.lastReviewDate?.toISOString() || todayStart.toISOString(),
+            completed: completedToday,
+            addedDate: todayStart.toISOString(),
             type: 'review',
             difficulty: problemDetail.difficulty,
             leetcodeNumber: problemDetail.number
