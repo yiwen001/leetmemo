@@ -165,29 +165,26 @@ export async function GET(
     console.log('Total pending problems to rollover:', totalPendingProblems)
     console.log('Tasks to update:', tasksToUpdate.length)
 
-    // 检查是否需要销毁计划（当积压任务超过15道题时）
+    // 检查是否需要销毁计划（积压超过15道题）
     if (totalPendingProblems > 15) {
-      // 销毁计划，但保留已学习的题目
-      const plan = await prisma.studyPlan.findUnique({
+      // 计算剩余未学习的题目
+      const studyPlan = await prisma.studyPlan.findUnique({
         where: { id: planId }
       })
+      
+      if (studyPlan) {
+        const remainingProblems = studyPlan.planProblems.filter(
+          problemId => !studyPlan.learnedProblems.includes(problemId)
+        )
 
-      if (plan) {
-        await prisma.studyPlan.update({
-          where: { id: planId },
-          data: { 
-            status: 'destroyed',
-            pendingTasks: totalPendingProblems
-          }
+        return NextResponse.json({
+          success: true,
+          planOverloaded: true,
+          totalPendingProblems,
+          remainingProblems: remainingProblems.length,
+          planId: planId
         })
       }
-
-      return NextResponse.json({
-        success: true,
-        planDestroyed: true,
-        totalPendingProblems,
-        reason: '积压任务超过15道，计划已自动重置'
-      })
     }
 
     // 顺延未完成的任务到今天

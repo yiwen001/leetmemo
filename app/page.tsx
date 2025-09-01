@@ -18,6 +18,7 @@ import CreatePlanModalNew from './components/CreatePlanModal/CreatePlanModalNew'
 import PlanDetailsModal from './components/PlanDetailsModal/PlanDetailsModal'
 import ProgressStats from './components/ProgressStats/ProgressStats'
 import StudyCalendarNew from './components/StudyCalendar/StudyCalendarNew'
+import PlanRecoveryModal from './components/PlanRecoveryModal/PlanRecoveryModal'
 
 // 定义数据类型
 interface Problem {
@@ -48,6 +49,9 @@ export default function HomePage() {
   const [studyPlan, setStudyPlan] = useState<any>(null)
 
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(true)
+  const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false)
+  const [recoveryData, setRecoveryData] = useState<any>(null)
+  const [recoveryLoading, setRecoveryLoading] = useState(false)
 
   // 使用 useEffect 处理重定向
   useEffect(() => {
@@ -101,7 +105,17 @@ export default function HomePage() {
       const result = await response.json()
 
       if (result.success) {
-        if (result.planDestroyed) {
+        if (result.planOverloaded) {
+          // 计划积压过多，询问是否恢复
+          setRecoveryData({
+            planId: result.planId,
+            totalPendingProblems: result.totalPendingProblems,
+            remainingProblems: result.remainingProblems
+          })
+          setIsRecoveryModalOpen(true)
+          setStudyPlan(plan) // 保持计划状态，等待用户决定
+          setProblems([]) // 清空任务列表
+        } else if (result.planDestroyed) {
           // 计划被销毁
           setStudyPlan(null)
           setProblems([])
@@ -200,6 +214,71 @@ export default function HomePage() {
         }
       }
     })
+  }
+
+  // 恢复计划
+  const handleRecoverPlan = async (duration: number, intensity: string, startDate?: string) => {
+    if (!recoveryData?.planId) return
+
+    setRecoveryLoading(true)
+    try {
+      const response = await fetch(`/api/study-plans/${recoveryData.planId}/recover`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          duration,
+          intensity,
+          startDate
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        message.success('计划恢复成功！')
+        setIsRecoveryModalOpen(false)
+        setRecoveryData(null)
+        // 重新检查计划状态并刷新日历
+        await checkExistingPlan()
+        // 强制刷新页面数据
+        window.location.reload()
+      } else {
+        message.error(result.error || '恢复计划失败')
+      }
+    } catch (error) {
+      console.error('恢复计划失败:', error)
+      message.error('恢复计划失败，请重试')
+    } finally {
+      setRecoveryLoading(false)
+    }
+  }
+
+  // 放弃恢复，删除计划
+  const handleAbandonPlan = async () => {
+    if (!recoveryData?.planId) return
+
+    try {
+      const response = await fetch(`/api/study-plans/${recoveryData.planId}/delete`, {
+        method: 'DELETE'
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        message.success('计划已删除')
+        setIsRecoveryModalOpen(false)
+        setRecoveryData(null)
+        setStudyPlan(null)
+        setProblems([])
+      } else {
+        message.error(result.error || '删除失败')
+      }
+    } catch (error) {
+      console.error('删除计划失败:', error)
+      message.error('删除失败，请重试')
+    }
   }
 
   // 如果未认证，返回 null
@@ -739,6 +818,15 @@ export default function HomePage() {
         loading={planDetailsLoading}
         onDeletePlan={handleDeletePlan}
         onCreatePlan={() => setIsCreatePlanModalOpen(true)}
+      />
+
+      {/* 计划恢复Modal */}
+      <PlanRecoveryModal
+        visible={isRecoveryModalOpen}
+        onClose={handleAbandonPlan}
+        onRecover={handleRecoverPlan}
+        loading={recoveryLoading}
+        remainingProblems={recoveryData?.remainingProblems || 0}
       />
     </div>
   )

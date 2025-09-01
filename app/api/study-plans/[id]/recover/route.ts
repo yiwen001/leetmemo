@@ -15,37 +15,40 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { newDuration, newIntensity } = body
+    const { duration, intensity, newDuration, newIntensity, startDate } = body
 
-    if (!newDuration || !newIntensity) {
+    // 支持两种参数名称格式
+    const finalDuration = duration || newDuration
+    const finalIntensity = intensity || newIntensity
+
+    if (!finalDuration || !finalIntensity) {
       return NextResponse.json({ 
         success: false, 
-        error: '缺少必填参数' 
+        error: '缺少必填参数: duration 和 intensity' 
       }, { status: 400 })
     }
 
     const planId = params.id
 
-    // 查找被销毁的计划
-    const destroyedPlan = await prisma.studyPlan.findFirst({
+    // 查找计划（不限制状态，因为积压时状态可能还是active）
+    const plan = await prisma.studyPlan.findFirst({
       where: {
         id: planId,
-        userId: session.user.id,
-        status: 'destroyed'
+        userId: session.user.id
       }
     })
 
-    if (!destroyedPlan) {
+    if (!plan) {
       return NextResponse.json({ 
         success: false, 
-        error: '计划不存在或状态不正确' 
+        error: '计划不存在' 
       }, { status: 404 })
     }
 
     // 计算未完成的题目
-    const allPlanProblems = destroyedPlan.planProblems
-    const learnedProblems = destroyedPlan.learnedProblems
-    const remainingProblems = allPlanProblems.filter(id => !learnedProblems.includes(id))
+    const allPlanProblems = plan.planProblems
+    const learnedProblems = plan.learnedProblems
+    const remainingProblems = allPlanProblems.filter((id: string) => !learnedProblems.includes(id))
 
     if (remainingProblems.length === 0) {
       return NextResponse.json({ 
@@ -59,30 +62,46 @@ export async function POST(
       where: { planId: planId }
     })
 
-    // 更新计划状态和信息
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    // 更新计划状态和信息 - 使用UTC时间
+    let today = new Date()
+    
+    // 如果用户指定了开始日期，使用指定日期
+    if (startDate) {
+      today = new Date(startDate + 'T00:00:00.000Z')
+      console.log('恢复计划使用用户指定日期:', today.toISOString())
+    } else {
+      // 否则尝试使用模拟时间或真实时间
+      try {
+        const mockModule = await import('../../../debug/set-mock-date/route')
+        today = mockModule.getCurrentDate()
+        console.log('恢复计划使用模拟时间:', today.toISOString())
+      } catch (e) {
+        // 如果模拟模块不存在，使用真实时间
+        console.log('恢复计划使用真实时间:', today.toISOString())
+      }
+    }
+    today.setUTCHours(0, 0, 0, 0)
 
     await prisma.studyPlan.update({
       where: { id: planId },
       data: {
         status: 'active',
         startDate: today,
-        duration: newDuration,
-        intensity: newIntensity,
+        duration: finalDuration,
+        intensity: finalIntensity,
         planProblems: remainingProblems, // 只包含未完成的题目
         pendingTasks: 0
       }
     })
 
     // 重新生成每日任务
-    await generateDailyTasks(planId, remainingProblems, newDuration, newIntensity, today)
+    await generateDailyTasks(planId, remainingProblems, finalDuration, finalIntensity, today)
 
     return NextResponse.json({
       success: true,
       message: '计划恢复成功',
       remainingProblems: remainingProblems.length,
-      newDuration,
+      newDuration: finalDuration,
       newStartDate: today.toISOString().split('T')[0]
     })
 
@@ -95,7 +114,7 @@ export async function POST(
   }
 }
 
-// 生成每日任务的函数（基于你的算法改进）
+// 生成每日任务的函数（与创建计划使用相同算法）
 async function generateDailyTasks(
   planId: string, 
   problems: string[], 
@@ -113,12 +132,13 @@ async function generateDailyTasks(
   const dailyNewCount = Math.min(config.maxDailyNew, Math.ceil(problems.length / duration))
   
   const tasks = []
-  const reviewIntervals = [1, 3, 7, 15, 30] // 艾宾浩斯遗忘曲线
+  const reviewIntervals = [1, 3, 7, 15, 30] // 艾宾浩斯遗忘曲线间隔
 
   for (let day = 1; day <= duration; day++) {
+    // 纯UTC日期计算
     const currentDate = new Date(startDate)
-    currentDate.setDate(currentDate.getDate() + day - 1)
-    currentDate.setHours(0, 0, 0, 0)
+    currentDate.setUTCDate(currentDate.getUTCDate() + day - 1)
+    currentDate.setUTCHours(0, 0, 0, 0)
 
     // 计算当天的新题目
     const startIndex = (day - 1) * dailyNewCount
@@ -135,7 +155,13 @@ async function generateDailyTasks(
         const studyStartIndex = (studyDay - 1) * dailyNewCount
         const studyEndIndex = Math.min(studyStartIndex + dailyNewCount, problems.length)
         const studyDayProblems = problems.slice(studyStartIndex, studyEndIndex)
-        reviewProblems.push(...studyDayProblems)
+        
+        // 避免重复添加同一题目
+        studyDayProblems.forEach(problemId => {
+          if (!reviewProblems.includes(problemId)) {
+            reviewProblems.push(problemId)
+          }
+        })
       }
     }
 
