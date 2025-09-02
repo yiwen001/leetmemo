@@ -237,12 +237,7 @@ export async function GET(
           data: newTaskItems
         })
 
-        // 删除已处理的过期任务
-        await prisma.dailyTask.deleteMany({
-          where: {
-            id: { in: tasksToUpdate.map(t => t.taskId) }
-          }
-        })
+        // 不删除历史任务记录，保留用于日历显示
       } else {
         // 创建新的今日任务
         const allUncompletedNew = tasksToUpdate.flatMap(t => t.newProblems)
@@ -278,12 +273,7 @@ export async function GET(
           data: newTaskItems
         })
 
-        // 删除已处理的过期任务
-        await prisma.dailyTask.deleteMany({
-          where: {
-            id: { in: tasksToUpdate.map(t => t.taskId) }
-          }
-        })
+        // 不删除历史任务记录，保留用于日历显示
       }
     }
 

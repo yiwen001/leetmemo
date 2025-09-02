@@ -431,14 +431,13 @@ export default function HomePage() {
       const result = await response.json()
 
       if (result.success) {
-        // 更新本地状态
+        // 更新本地状态 - 只修改今日任务完成状态，不影响学习历史
         setProblems(prev =>
           prev.map(p =>
             p.id === problemId
               ? {
                   ...p,
-                  reviewCount: p.reviewCount + 1,
-                  completed: true
+                  completed: true  // 只标记今日任务完成，reviewCount由后端管理
                 }
               : p
           )
@@ -465,8 +464,7 @@ export default function HomePage() {
         problem.id === problemId 
           ? { 
               ...problem, 
-              reviewCount: Math.max(0, problem.reviewCount - 1),
-              completed: false
+              completed: false  // 只修改今日任务完成状态，不影响学习历史
             }
           : problem
       )

@@ -16,6 +16,16 @@ export async function GET(
 
     const planId = params.id
 
+    // 后端只使用UTC时间，不做时区转换
+    // 支持测试时的模拟日期
+    let now = new Date()
+    try {
+      const mockModule = await import('../../../debug/set-mock-date/route')
+      now = mockModule.getCurrentDate()
+    } catch (e) {
+      // 如果模拟模块不存在，使用真实时间
+    }
+
     // 验证计划属于当前用户
     const plan = await prisma.studyPlan.findFirst({
       where: {
@@ -76,7 +86,7 @@ export async function GET(
       recordMap.set(record.problemId, record)
     })
 
-    // 构建日历数据
+    // 转换为日历格式
     const calendarData = dailyTasks.map(task => {
       // 构建新题目列表
       const newProblems = task.taskItems
@@ -90,7 +100,7 @@ export async function GET(
             number: problemDetail?.number || 0,
             difficulty: problemDetail?.difficulty || 'unknown',
             url: problemDetail?.url || '',
-            completed: studyRecord?.completed || false,
+            completed: item.completed, // 使用TaskItem的完成状态，而不是StudyRecord的完成状态
             notes: studyRecord?.notes || ''
           }
         })
@@ -107,7 +117,7 @@ export async function GET(
             number: problemDetail?.number || 0,
             difficulty: problemDetail?.difficulty || 'unknown',
             url: problemDetail?.url || '',
-            completed: studyRecord?.completed || false,
+            completed: item.completed, // 使用TaskItem的完成状态，而不是StudyRecord的完成状态
             notes: studyRecord?.notes || ''
           }
         })
@@ -123,13 +133,25 @@ export async function GET(
       } else if (completedProblems.length > 0) {
         status = 'partial'
       } else {
-        // 检查是否过期
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
+        // 检查是否过期 - 使用模拟日期而不是浏览器时间
+        const today = new Date(now)
+        today.setUTCHours(0, 0, 0, 0)
         if (task.currentDate < today) {
           status = 'overdue'
         }
       }
+
+      // 调试信息
+      console.log(`Calendar Debug - Day ${task.day} (${task.currentDate.toISOString().split('T')[0]}):`)
+      console.log(`  TaskItems: ${task.taskItems.length}`)
+      console.log(`  Completed: ${completedProblems.length}/${allProblems.length}`)
+      console.log(`  Status: ${status}`)
+      console.log(`  TaskItems details:`, task.taskItems.map(item => ({
+        id: item.id,
+        problemId: item.problemId,
+        taskType: item.taskType,
+        completed: item.completed
+      })))
 
       return {
         day: task.day,

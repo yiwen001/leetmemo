@@ -40,6 +40,7 @@ export default function StudyCalendarNew({ planId }: StudyCalendarProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [calendarData, setCalendarData] = useState<CalendarDay[]>([])
   const [loading, setLoading] = useState(false)
+  const [currentDate, setCurrentDate] = useState<string>('')
   const [statistics, setStatistics] = useState({
     totalDays: 0,
     completedDays: 0,
@@ -48,12 +49,42 @@ export default function StudyCalendarNew({ planId }: StudyCalendarProps) {
     completionRate: 0
   })
 
+  // 获取当前日期
+  useEffect(() => {
+    fetchCurrentDate()
+  }, [])
+
   // 获取日历数据
   useEffect(() => {
-    if (planId) {
+    if (planId && currentDate) {
       fetchCalendarData()
     }
-  }, [planId])
+  }, [planId, currentDate])
+
+  const fetchCurrentDate = async () => {
+    try {
+      const response = await fetch('/api/debug/set-mock-date', { method: 'GET' })
+      const result = await response.json()
+      if (result.success && result.effectiveDate) {
+        const date = new Date(result.effectiveDate)
+        const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+        setCurrentDate(dateStr)
+        console.log(`Fetched current date: ${dateStr}`)
+      } else {
+        // 如果获取失败，使用本地日期
+        const date = new Date()
+        const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+        setCurrentDate(dateStr)
+        console.log(`Using local date: ${dateStr}`)
+      }
+    } catch (error) {
+      console.error('Failed to fetch current date:', error)
+      // 如果获取失败，使用本地日期
+      const date = new Date()
+      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+      setCurrentDate(dateStr)
+    }
+  }
 
   const fetchCalendarData = async () => {
     if (!planId) return
@@ -87,9 +118,21 @@ export default function StudyCalendarNew({ planId }: StudyCalendarProps) {
 
     const days = []
     
+    // 使用从后端获取的当前日期，而不是浏览器本地日期
+    const todayStr = currentDate
+    
+    // 调试信息
+    console.log(`Current date from backend: ${todayStr}`)
+    console.log(`Calendar data:`, calendarData)
+    
     // 格式化日期为 YYYY-MM-DD 格式，避免时区问题
     const formatDate = (year: number, month: number, day: number) => {
       return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    }
+    
+    // 判断日期是否为过去
+    const isPastDate = (dateStr: string) => {
+      return dateStr < todayStr
     }
     
     // 添加上个月的日期
@@ -113,11 +156,26 @@ export default function StudyCalendarNew({ planId }: StudyCalendarProps) {
       const dateStr = formatDate(year, month, day)
       const plan = calendarData.find(p => p.date === dateStr || p.currentDate === dateStr)
       
+      // 对于过去的日期，直接使用后端计算的状态，不需要前端重新计算
+      let historicalStatus = null
+      if (isPastDate(dateStr) && plan) {
+        // 直接使用后端已经正确计算的状态
+        historicalStatus = plan.status
+        // 调试信息
+        console.log(`Date: ${dateStr}, isPast: ${isPastDate(dateStr)}, plan exists: ${!!plan}, completed: ${plan.completedProblems}/${plan.totalProblems}, backend status: ${plan.status}`)
+      } else if (isPastDate(dateStr)) {
+        // 调试信息
+        console.log(`Date: ${dateStr}, isPast: ${isPastDate(dateStr)}, no plan found`)
+        // 没有计划的过去日期保持 null，不显示任何状态
+      }
+      
       days.push({
         date: dateStr,
         day,
         isCurrentMonth: true,
-        plan
+        plan,
+        isPast: isPastDate(dateStr),
+        historicalStatus
       })
     }
 
@@ -132,7 +190,9 @@ export default function StudyCalendarNew({ planId }: StudyCalendarProps) {
         date: dateStr,
         day: day,
         isCurrentMonth: false,
-        plan: null
+        plan: null,
+        isPast: isPastDate(dateStr),
+        historicalStatus: null
       })
     }
 
@@ -233,33 +293,38 @@ export default function StudyCalendarNew({ planId }: StudyCalendarProps) {
 
       {/* 日历网格 */}
       <div className={styles.calendarGrid}>
-        {monthDays.map(({ date, day, isCurrentMonth, plan }) => (
-          <div
-            key={date}
-            className={`${styles.calendarDay} ${!isCurrentMonth ? styles.otherMonth : ''} ${plan ? styles.hasTask : ''}`}
-            onClick={() => handleDateClick(date, plan)}
-            style={{
-              backgroundColor: plan ? getStatusColor(plan.status) : undefined,
-              opacity: isCurrentMonth ? 1 : 0.3,
-              cursor: plan ? 'pointer' : 'default'
-            }}
-          >
-            <span className={styles.dayNumber}>{day}</span>
-            {plan && (
-              <div className={styles.taskIndicator}>
-                <div className={styles.taskCount}>
-                  {plan.completedProblems}/{plan.totalProblems}
+        {monthDays.map(({ date, day, isCurrentMonth, plan, isPast, historicalStatus }) => {
+          // 对于过去的日期，使用历史完成状态；对于今天及未来，使用计划状态
+          const displayStatus = isPast && historicalStatus ? historicalStatus : (plan?.status || null)
+          
+          return (
+            <div
+              key={date}
+              className={`${styles.calendarDay} ${!isCurrentMonth ? styles.otherMonth : ''} ${plan ? styles.hasTask : ''}`}
+              onClick={() => handleDateClick(date, plan)}
+              style={{
+                backgroundColor: displayStatus ? getStatusColor(displayStatus) : undefined,
+                opacity: isCurrentMonth ? 1 : 0.3,
+                cursor: plan ? 'pointer' : 'default'
+              }}
+            >
+              <span className={styles.dayNumber}>{day}</span>
+              {plan && (
+                <div className={styles.taskIndicator}>
+                  <div className={styles.taskCount}>
+                    {plan.completedProblems}/{plan.totalProblems}
+                  </div>
+                  {displayStatus === 'completed' && (
+                    <CheckCircle size={12} style={{ color: 'white' }} />
+                  )}
+                  {displayStatus === 'overdue' && (
+                    <Clock size={12} style={{ color: 'white' }} />
+                  )}
                 </div>
-                {plan.status === 'completed' && (
-                  <CheckCircle size={12} style={{ color: 'white' }} />
-                )}
-                {plan.status === 'overdue' && (
-                  <Clock size={12} style={{ color: 'white' }} />
-                )}
-              </div>
-            )}
-          </div>
-        ))}
+              )}
+            </div>
+          )
+        })}
       </div>
 
       {/* 图例 */}

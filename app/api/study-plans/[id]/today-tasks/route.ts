@@ -70,24 +70,6 @@ export async function GET(
       }
     })
 
-    // 获取今天已完成的任务记录 - 使用UTC时间
-    const todayStart = new Date()
-    todayStart.setUTCHours(0, 0, 0, 0)
-    const todayEndForCompletion = new Date()
-    todayEndForCompletion.setUTCHours(23, 59, 59, 999)
-    
-    const todayCompletedRecords = await prisma.studyRecord.findMany({
-      where: {
-        userId: session.user.id,
-        problemId: { in: allProblemIds },
-        lastReviewDate: {
-          gte: todayStart,
-          lte: todayEndForCompletion
-        },
-        completed: true
-      }
-    })
-
     // 创建题目ID到详情的映射
     const problemMap = new Map()
     problemDetails.forEach(problem => {
@@ -100,12 +82,6 @@ export async function GET(
       recordMap.set(record.problemId, record)
     })
 
-    // 创建今天已完成任务的映射
-    const todayCompletedMap = new Set()
-    todayCompletedRecords.forEach(record => {
-      todayCompletedMap.add(record.problemId)
-    })
-
     // 转换为前端需要的格式
     const tasks = []
     let problemNumber = 1
@@ -115,7 +91,8 @@ export async function GET(
       for (const taskItem of task.taskItems) {
         const problemDetail = problemMap.get(taskItem.problemId)
         const studyRecord = recordMap.get(taskItem.problemId)
-        const completedToday = todayCompletedMap.has(taskItem.problemId)
+        // 使用TaskItem的completion状态，而不是StudyRecord的状态
+        const completedToday = taskItem.completed
 
         if (problemDetail) {
           const isNewTask = taskItem.taskType === 'new'
@@ -131,9 +108,9 @@ export async function GET(
             reviewCount: isNewTask ? 
               (studyRecord?.reviewCount || 0) : 
               (studyRecord?.reviewCount || 0) + 1,
-            lastReviewDate: studyRecord?.lastReviewDate?.toISOString() || todayStart.toISOString(),
+            lastReviewDate: studyRecord?.lastReviewDate?.toISOString() || task.currentDate.toISOString(),
             completed: completedToday,
-            addedDate: todayStart.toISOString(),
+            addedDate: task.currentDate.toISOString(),
             type: taskItem.taskType,
             difficulty: problemDetail.difficulty,
             leetcodeNumber: problemDetail.number
