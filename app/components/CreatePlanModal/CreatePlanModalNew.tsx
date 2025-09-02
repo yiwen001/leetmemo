@@ -37,6 +37,21 @@ export default function CreatePlanModalNew({ open, onCancel, onSubmit, loading }
   const [problemsLoading, setProblemsLoading] = useState(false)
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all')
   const [filterCategory, setFilterCategory] = useState<string>('all')
+  
+  // 手动添加题目相关状态
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [newProblem, setNewProblem] = useState({
+    url: '',
+    title: '',
+    titleCn: '',
+    difficulty: 'medium',
+    category: 'Array',
+    number: ''
+  })
+  const [addingProblem, setAddingProblem] = useState(false)
+  
+  // 预览相关状态
+  const [showPreview, setShowPreview] = useState(false)
 
   // 获取题库数据
   useEffect(() => {
@@ -61,6 +76,107 @@ export default function CreatePlanModalNew({ open, onCancel, onSubmit, loading }
     } finally {
       setProblemsLoading(false)
     }
+  }
+
+  // 从URL解析题目标题
+  const parseTitle = (url: string) => {
+    try {
+      const urlObj = new URL(url)
+      const pathname = urlObj.pathname
+      const match = pathname.match(/\/problems\/([^\/]+)/)
+      if (match) {
+        return match[1].split('-').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ')
+      }
+    } catch (e) {
+      // 无效URL
+    }
+    return ''
+  }
+
+  // 从URL解析题目编号
+  const parseNumber = (url: string) => {
+    try {
+      const urlObj = new URL(url)
+      const pathname = urlObj.pathname
+      const match = pathname.match(/\/problems\/([^\/]+)/)
+      if (match) {
+        const slug = match[1]
+        // 尝试从slug中提取数字，如果没有则返回空
+        const numberMatch = slug.match(/^(\d+)/)
+        return numberMatch ? numberMatch[1] : ''
+      }
+    } catch (e) {
+      // 无效URL
+    }
+    return ''
+  }
+
+  // 处理URL变化
+  const handleUrlChange = (url: string) => {
+    setNewProblem(prev => ({
+      ...prev,
+      url,
+      title: url ? parseTitle(url) : prev.title,
+      number: url ? parseNumber(url) : prev.number
+    }))
+  }
+
+  // 手动添加题目
+  const handleAddProblem = async () => {
+    if (!newProblem.url) {
+      message.error('请填写题目链接')
+      return
+    }
+
+    setAddingProblem(true)
+    try {
+      const response = await fetch('/api/leetcode-problems', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          url: newProblem.url,
+          title: newProblem.title || parseTitle(newProblem.url),
+          titleCn: newProblem.titleCn || newProblem.title || parseTitle(newProblem.url),
+          difficulty: newProblem.difficulty,
+          category: newProblem.category,
+          number: newProblem.number ? parseInt(newProblem.number) : null,
+          tags: [newProblem.category]
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        message.success('题目添加成功')
+        // 重新获取题库数据
+        await fetchProblems()
+        // 重置表单
+        setNewProblem({
+          url: '',
+          title: '',
+          titleCn: '',
+          difficulty: 'medium',
+          category: 'Array',
+          number: ''
+        })
+        setShowAddForm(false)
+      } else {
+        message.error(result.error || '添加题目失败')
+      }
+    } catch (error) {
+      console.error('添加题目失败:', error)
+      message.error('添加题目失败')
+    } finally {
+      setAddingProblem(false)
+    }
+  }
+
+  // 获取选中的题目详情
+  const getSelectedProblemsDetails = () => {
+    return problems.filter(problem => selectedProblems.includes(problem.id))
   }
 
   // 过滤题目
@@ -163,6 +279,146 @@ export default function CreatePlanModalNew({ open, onCancel, onSubmit, loading }
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>选择题目</label>
             <div>
+              {/* 操作按钮 */}
+              <div style={{ marginBottom: '12px' }}>
+                <Button 
+                  type="dashed" 
+                  onClick={() => setShowAddForm(!showAddForm)}
+                  style={{ marginRight: 8 }}
+                >
+                  {showAddForm ? '取消添加' : '手动添加题目'}
+                </Button>
+                <Button 
+                  type="primary" 
+                  ghost
+                  onClick={() => setShowPreview(!showPreview)}
+                  disabled={selectedProblems.length === 0}
+                >
+                  预览选中题目 ({selectedProblems.length})
+                </Button>
+              </div>
+
+              {/* 手动添加题目表单 */}
+              {showAddForm && (
+                <div style={{ 
+                  marginBottom: '16px', 
+                  padding: '16px', 
+                  border: '1px solid #d9d9d9', 
+                  borderRadius: '6px',
+                  backgroundColor: '#fafafa'
+                }}>
+                  <h4 style={{ marginBottom: '12px' }}>添加新题目</h4>
+                  <div style={{ marginBottom: '12px' }}>
+                    <Input
+                      placeholder="题目链接 (必填，如: https://leetcode.com/problems/two-sum/)"
+                      value={newProblem.url}
+                      onChange={(e) => handleUrlChange(e.target.value)}
+                    />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                    <Input
+                      placeholder="题目编号 (自动解析)"
+                      value={newProblem.number}
+                      onChange={(e) => setNewProblem({...newProblem, number: e.target.value})}
+                    />
+                    <Select
+                      value={newProblem.difficulty}
+                      onChange={(value) => setNewProblem({...newProblem, difficulty: value})}
+                    >
+                      <Option value="easy">简单</Option>
+                      <Option value="medium">中等</Option>
+                      <Option value="hard">困难</Option>
+                    </Select>
+                  </div>
+                  <div style={{ marginBottom: '12px' }}>
+                    <Input
+                      placeholder="题目标题 (自动解析，可修改)"
+                      value={newProblem.title}
+                      onChange={(e) => setNewProblem({...newProblem, title: e.target.value})}
+                    />
+                  </div>
+                  <div style={{ marginBottom: '12px' }}>
+                    <Input
+                      placeholder="题目标题 (中文，可选)"
+                      value={newProblem.titleCn}
+                      onChange={(e) => setNewProblem({...newProblem, titleCn: e.target.value})}
+                    />
+                  </div>
+                  <div style={{ marginBottom: '12px' }}>
+                    <Input
+                      placeholder="分类 (如: Array)"
+                      value={newProblem.category}
+                      onChange={(e) => setNewProblem({...newProblem, category: e.target.value})}
+                    />
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <Button 
+                      type="primary" 
+                      onClick={handleAddProblem}
+                      loading={addingProblem}
+                    >
+                      添加题目
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* 预览选中题目 */}
+              {showPreview && selectedProblems.length > 0 && (
+                <div style={{ 
+                  marginBottom: '16px', 
+                  padding: '16px', 
+                  border: '1px solid #1890ff', 
+                  borderRadius: '6px',
+                  backgroundColor: '#f6ffed'
+                }}>
+                  <h4 style={{ marginBottom: '12px', color: '#1890ff' }}>已选择的题目 ({selectedProblems.length} 道)</h4>
+                  <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                    {getSelectedProblemsDetails().map((problem, index) => (
+                      <div key={problem.id} style={{ 
+                        marginBottom: '8px', 
+                        padding: '8px 12px', 
+                        backgroundColor: 'white',
+                        border: '1px solid #e8f4fd',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                      }}>
+                        <div>
+                          <span style={{ marginRight: '8px', fontWeight: 'bold' }}>
+                            {index + 1}.
+                          </span>
+                          <span style={{ 
+                            display: 'inline-block', 
+                            padding: '2px 6px', 
+                            borderRadius: '3px', 
+                            fontSize: '12px',
+                            marginRight: '8px',
+                            backgroundColor: problem.difficulty === 'easy' ? '#52c41a' : problem.difficulty === 'medium' ? '#faad14' : '#f5222d',
+                            color: 'white'
+                          }}>
+                            {problem.difficulty}
+                          </span>
+                          <span style={{ marginRight: '8px', color: '#666' }}>#{problem.number}</span>
+                          <span style={{ marginRight: '8px', fontWeight: '500' }}>
+                            {problem.titleCn || problem.title}
+                          </span>
+                          <span style={{ color: '#999', fontSize: '12px' }}>{problem.category}</span>
+                        </div>
+                        <Button 
+                          type="text" 
+                          size="small"
+                          onClick={() => setSelectedProblems(prev => prev.filter(id => id !== problem.id))}
+                        >
+                          移除
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* 筛选器 */}
               <div style={{ marginBottom: '12px' }}>
                 <Select
@@ -196,14 +452,19 @@ export default function CreatePlanModalNew({ open, onCancel, onSubmit, loading }
                     <Spin />
                   </div>
                 ) : (
-                  <Checkbox.Group
-                    value={selectedProblems}
-                    onChange={setSelectedProblems}
-                    style={{ width: '100%' }}
-                  >
+                  <div style={{ width: '100%' }}>
                     {filteredProblems.map(problem => (
                       <div key={problem.id} style={{ marginBottom: '8px', padding: '8px', border: '1px solid #f0f0f0', borderRadius: '4px' }}>
-                        <Checkbox value={problem.id}>
+                        <Checkbox 
+                          checked={selectedProblems.includes(problem.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedProblems(prev => [...prev, problem.id])
+                            } else {
+                              setSelectedProblems(prev => prev.filter(id => id !== problem.id))
+                            }
+                          }}
+                        >
                           <span style={{ 
                             display: 'inline-block', 
                             padding: '2px 6px', 
@@ -223,7 +484,7 @@ export default function CreatePlanModalNew({ open, onCancel, onSubmit, loading }
                         </Checkbox>
                       </div>
                     ))}
-                  </Checkbox.Group>
+                  </div>
                 )}
               </div>
               <div style={{ marginTop: '8px', color: '#666' }}>
