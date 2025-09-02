@@ -135,7 +135,8 @@ model TaskItem {
 
 model LeetCodeProblem {
   id          String   @id @default(cuid())
-  number      Int      @unique  // LeetCode题号
+  slug        String   @unique  // 题目slug，如 "two-sum"，作为唯一标识
+  number      Int?     // LeetCode题号，可为空
   title       String   // 题目标题
   titleCn     String?  // 中文标题
   difficulty  String   // easy/medium/hard

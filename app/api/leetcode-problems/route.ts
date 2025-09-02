@@ -36,36 +36,37 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { url, title, titleCn, difficulty, category, number, tags } = body
+    const { slug, url, title, titleCn, difficulty, category, number, tags } = body
 
-    if (!url) {
+    if (!slug || !url) {
       return NextResponse.json({ 
         success: false, 
-        error: '题目链接为必填项' 
+        error: '题目slug和链接为必填项' 
       }, { status: 400 })
     }
 
-    // 检查URL是否已存在
+    // 检查slug是否已存在
     const existingProblem = await prisma.leetCodeProblem.findFirst({
-      where: { url: url.trim() }
+      where: { slug: slug.trim() }
     })
 
     if (existingProblem) {
       return NextResponse.json({ 
         success: false, 
-        error: '该题目链接已存在' 
+        error: '该题目已存在' 
       }, { status: 400 })
     }
 
     // 创建新题目
     const newProblem = await prisma.leetCodeProblem.create({
       data: {
+        slug: slug.trim(),
         url: url.trim(),
         title: title?.trim() || 'Unknown Title',
         titleCn: titleCn?.trim() || title?.trim() || 'Unknown Title',
         difficulty: difficulty || 'medium',
         category: category || 'Array',
-        number: number ? parseInt(number) : 0, // 使用0作为默认值而不是null
+        number: number ? parseInt(number) : null,
         tags: tags || [category || 'Array']
       }
     })

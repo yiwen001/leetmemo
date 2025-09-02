@@ -5,6 +5,7 @@ const prisma = new PrismaClient()
 const leetcodeProblems = [
   // 数组类题目
   {
+    slug: "two-sum",
     number: 1,
     title: "Two Sum",
     titleCn: "两数之和",
@@ -14,6 +15,7 @@ const leetcodeProblems = [
     category: "数组"
   },
   {
+    slug: "3sum",
     number: 15,
     title: "3Sum",
     titleCn: "三数之和",
@@ -23,6 +25,7 @@ const leetcodeProblems = [
     category: "数组"
   },
   {
+    slug: "remove-duplicates-from-sorted-array",
     number: 26,
     title: "Remove Duplicates from Sorted Array",
     titleCn: "删除有序数组中的重复项",
@@ -32,6 +35,7 @@ const leetcodeProblems = [
     category: "数组"
   },
   {
+    slug: "maximum-subarray",
     number: 53,
     title: "Maximum Subarray",
     titleCn: "最大子数组和",
@@ -41,6 +45,7 @@ const leetcodeProblems = [
     category: "数组"
   },
   {
+    slug: "best-time-to-buy-and-sell-stock",
     number: 121,
     title: "Best Time to Buy and Sell Stock",
     titleCn: "买卖股票的最佳时机",
@@ -52,6 +57,7 @@ const leetcodeProblems = [
   
   // 链表类题目
   {
+    slug: "add-two-numbers",
     number: 2,
     title: "Add Two Numbers",
     titleCn: "两数相加",
@@ -61,6 +67,7 @@ const leetcodeProblems = [
     category: "链表"
   },
   {
+    slug: "merge-two-sorted-lists",
     number: 21,
     title: "Merge Two Sorted Lists",
     titleCn: "合并两个有序链表",
@@ -70,6 +77,7 @@ const leetcodeProblems = [
     category: "链表"
   },
   {
+    slug: "reverse-linked-list",
     number: 206,
     title: "Reverse Linked List",
     titleCn: "反转链表",
@@ -79,6 +87,7 @@ const leetcodeProblems = [
     category: "链表"
   },
   {
+    slug: "linked-list-cycle",
     number: 141,
     title: "Linked List Cycle",
     titleCn: "环形链表",
@@ -88,6 +97,7 @@ const leetcodeProblems = [
     category: "链表"
   },
   {
+    slug: "linked-list-cycle-ii",
     number: 142,
     title: "Linked List Cycle II",
     titleCn: "环形链表 II",
@@ -99,6 +109,7 @@ const leetcodeProblems = [
 
   // 字符串类题目
   {
+    slug: "longest-substring-without-repeating-characters",
     number: 3,
     title: "Longest Substring Without Repeating Characters",
     titleCn: "无重复字符的最长子串",
@@ -108,6 +119,7 @@ const leetcodeProblems = [
     category: "字符串"
   },
   {
+    slug: "longest-palindromic-substring",
     number: 5,
     title: "Longest Palindromic Substring",
     titleCn: "最长回文子串",
@@ -117,6 +129,7 @@ const leetcodeProblems = [
     category: "字符串"
   },
   {
+    slug: "valid-parentheses",
     number: 20,
     title: "Valid Parentheses",
     titleCn: "有效的括号",
@@ -126,6 +139,7 @@ const leetcodeProblems = [
     category: "字符串"
   },
   {
+    slug: "valid-palindrome",
     number: 125,
     title: "Valid Palindrome",
     titleCn: "验证回文串",
@@ -135,6 +149,7 @@ const leetcodeProblems = [
     category: "字符串"
   },
   {
+    slug: "valid-anagram",
     number: 242,
     title: "Valid Anagram",
     titleCn: "有效的字母异位词",
@@ -146,6 +161,7 @@ const leetcodeProblems = [
 
   // 树类题目
   {
+    slug: "binary-tree-inorder-traversal",
     number: 94,
     title: "Binary Tree Inorder Traversal",
     titleCn: "二叉树的中序遍历",
@@ -155,6 +171,7 @@ const leetcodeProblems = [
     category: "树"
   },
   {
+    slug: "maximum-depth-of-binary-tree",
     number: 104,
     title: "Maximum Depth of Binary Tree",
     titleCn: "二叉树的最大深度",
@@ -164,6 +181,7 @@ const leetcodeProblems = [
     category: "树"
   },
   {
+    slug: "invert-binary-tree",
     number: 226,
     title: "Invert Binary Tree",
     titleCn: "翻转二叉树",
@@ -173,6 +191,7 @@ const leetcodeProblems = [
     category: "树"
   },
   {
+    slug: "binary-tree-level-order-traversal",
     number: 102,
     title: "Binary Tree Level Order Traversal",
     titleCn: "二叉树的层序遍历",
@@ -182,6 +201,7 @@ const leetcodeProblems = [
     category: "树"
   },
   {
+    slug: "validate-binary-search-tree",
     number: 98,
     title: "Validate Binary Search Tree",
     titleCn: "验证二叉搜索树",
@@ -193,6 +213,7 @@ const leetcodeProblems = [
 
   // 动态规划类题目
   {
+    slug: "climbing-stairs",
     number: 70,
     title: "Climbing Stairs",
     titleCn: "爬楼梯",
@@ -202,6 +223,7 @@ const leetcodeProblems = [
     category: "动态规划"
   },
   {
+    slug: "house-robber",
     number: 198,
     title: "House Robber",
     titleCn: "打家劫舍",
@@ -211,6 +233,7 @@ const leetcodeProblems = [
     category: "动态规划"
   },
   {
+    slug: "coin-change",
     number: 322,
     title: "Coin Change",
     titleCn: "零钱兑换",
@@ -220,6 +243,7 @@ const leetcodeProblems = [
     category: "动态规划"
   },
   {
+    slug: "longest-increasing-subsequence",
     number: 300,
     title: "Longest Increasing Subsequence",
     titleCn: "最长递增子序列",
@@ -229,6 +253,7 @@ const leetcodeProblems = [
     category: "动态规划"
   },
   {
+    slug: "unique-paths",
     number: 62,
     title: "Unique Paths",
     titleCn: "不同路径",

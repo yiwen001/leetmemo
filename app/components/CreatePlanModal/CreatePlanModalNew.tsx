@@ -95,17 +95,14 @@ export default function CreatePlanModalNew({ open, onCancel, onSubmit, loading }
     return ''
   }
 
-  // 从URL解析题目编号
-  const parseNumber = (url: string) => {
+  // 从URL解析题目slug
+  const parseSlug = (url: string) => {
     try {
       const urlObj = new URL(url)
       const pathname = urlObj.pathname
       const match = pathname.match(/\/problems\/([^\/]+)/)
       if (match) {
-        const slug = match[1]
-        // 尝试从slug中提取数字，如果没有则返回空
-        const numberMatch = slug.match(/^(\d+)/)
-        return numberMatch ? numberMatch[1] : ''
+        return match[1] // 返回slug，如 "two-sum" 或 "1-two-sum"
       }
     } catch (e) {
       // 无效URL
@@ -113,13 +110,29 @@ export default function CreatePlanModalNew({ open, onCancel, onSubmit, loading }
     return ''
   }
 
+  // 从URL解析题目编号
+  const parseNumber = (url: string) => {
+    try {
+      const slug = parseSlug(url)
+      if (slug) {
+        // 尝试从slug中提取数字，如果没有则返回null
+        const numberMatch = slug.match(/^(\d+)/)
+        return numberMatch ? parseInt(numberMatch[1]) : null
+      }
+    } catch (e) {
+      // 无效URL
+    }
+    return null
+  }
+
   // 处理URL变化
   const handleUrlChange = (url: string) => {
+    const parsedNumber = url ? parseNumber(url) : null
     setNewProblem(prev => ({
       ...prev,
       url,
       title: url ? parseTitle(url) : prev.title,
-      number: url ? parseNumber(url) : prev.number
+      number: parsedNumber ? parsedNumber.toString() : ''
     }))
   }
 
@@ -138,6 +151,7 @@ export default function CreatePlanModalNew({ open, onCancel, onSubmit, loading }
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          slug: parseSlug(newProblem.url),
           url: newProblem.url,
           title: newProblem.title || parseTitle(newProblem.url),
           titleCn: newProblem.titleCn || newProblem.title || parseTitle(newProblem.url),
