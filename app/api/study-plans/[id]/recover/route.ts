@@ -114,7 +114,7 @@ export async function POST(
   }
 }
 
-// 生成每日任务的函数（与创建计划使用相同算法）
+// 生成每日任务的函数（使用新的TaskItem架构）
 async function generateDailyTasks(
   planId: string, 
   problems: string[], 
@@ -131,7 +131,6 @@ async function generateDailyTasks(
   const config = intensityConfig[intensity as keyof typeof intensityConfig] || intensityConfig.medium
   const dailyNewCount = Math.min(config.maxDailyNew, Math.ceil(problems.length / duration))
   
-  const tasks = []
   const reviewIntervals = [1, 3, 7, 15, 30] // 艾宾浩斯遗忘曲线间隔
 
   for (let day = 1; day <= duration; day++) {
@@ -140,12 +139,23 @@ async function generateDailyTasks(
     currentDate.setUTCDate(currentDate.getUTCDate() + day - 1)
     currentDate.setUTCHours(0, 0, 0, 0)
 
-    // 计算当天的新题目
+    // 1. 创建DailyTask记录
+    const dailyTask = await prisma.dailyTask.create({
+      data: {
+        planId,
+        day,
+        originalDate: currentDate,
+        currentDate: currentDate,
+        status: 'pending'
+      }
+    })
+
+    // 2. 计算当天的新题目
     const startIndex = (day - 1) * dailyNewCount
     const endIndex = Math.min(startIndex + dailyNewCount, problems.length)
     const newProblems = problems.slice(startIndex, endIndex)
 
-    // 计算复习题目（基于艾宾浩斯遗忘曲线）
+    // 3. 计算复习题目（基于艾宾浩斯遗忘曲线）
     const reviewProblems: string[] = []
     
     for (const interval of reviewIntervals) {
@@ -165,7 +175,7 @@ async function generateDailyTasks(
       }
     }
 
-    // 检查当天总任务量是否超限
+    // 4. 检查当天总任务量是否超限
     const totalTasks = newProblems.length + reviewProblems.length
     if (totalTasks > config.maxDailyTotal) {
       // 优先保留新题目，适当减少复习题目
@@ -173,19 +183,27 @@ async function generateDailyTasks(
       reviewProblems.splice(maxReview)
     }
 
-    tasks.push({
-      planId,
-      day,
-      originalDate: currentDate,
-      currentDate: currentDate,
-      newProblems,
-      reviewProblems,
-      status: 'pending'
-    })
-  }
+    // 5. 为每个新题目创建TaskItem
+    const newTaskItems = newProblems.map(problemId => ({
+      dailyTaskId: dailyTask.id,
+      problemId,
+      taskType: 'new',
+      completed: false
+    }))
 
-  // 批量创建任务
-  await prisma.dailyTask.createMany({
-    data: tasks
-  })
+    // 6. 为每个复习题目创建TaskItem
+    const reviewTaskItems = reviewProblems.map(problemId => ({
+      dailyTaskId: dailyTask.id,
+      problemId,
+      taskType: 'review',
+      completed: false
+    }))
+
+    // 7. 批量创建所有TaskItem
+    if (newTaskItems.length > 0 || reviewTaskItems.length > 0) {
+      await prisma.taskItem.createMany({
+        data: [...newTaskItems, ...reviewTaskItems]
+      })
+    }
+  }
 }

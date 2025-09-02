@@ -36,18 +36,23 @@ export async function GET(
           lte: now  // 小于等于当前UTC时间的所有任务
         }
       },
+      include: {
+        taskItems: true
+      },
       orderBy: { day: 'asc' }
     })
 
     console.log('Found tasks on or before today:', allRelevantTasks.length, allRelevantTasks.map(t => ({ 
       day: t.day, 
-      currentDate: t.currentDate.toISOString().split('T')[0] 
+      currentDate: t.currentDate.toISOString().split('T')[0],
+      taskItemsCount: t.taskItems.length
     })))
 
     // 获取所有相关的题目ID
     const allProblemIds: string[] = []
     allRelevantTasks.forEach(task => {
-      allProblemIds.push(...task.newProblems, ...task.reviewProblems)
+      const problemIds = task.taskItems.map(item => item.problemId)
+      allProblemIds.push(...problemIds)
     })
 
     // 从数据库获取题目详情
@@ -106,48 +111,30 @@ export async function GET(
     let problemNumber = 1
 
     for (const task of allRelevantTasks) {
-      // 处理新题目
-      for (const problemId of task.newProblems) {
-        const problemDetail = problemMap.get(problemId)
-        const studyRecord = recordMap.get(problemId)
-        const completedToday = todayCompletedMap.has(problemId)
+      // 处理所有TaskItems
+      for (const taskItem of task.taskItems) {
+        const problemDetail = problemMap.get(taskItem.problemId)
+        const studyRecord = recordMap.get(taskItem.problemId)
+        const completedToday = todayCompletedMap.has(taskItem.problemId)
 
         if (problemDetail) {
+          const isNewTask = taskItem.taskType === 'new'
           tasks.push({
-            id: `${task.id}-new-${problemId}`,
+            id: `${task.id}-${taskItem.taskType}-${taskItem.problemId}`,
+            taskItemId: taskItem.id, // 添加taskItemId字段
             number: problemNumber++,
-            title: problemDetail.titleCn || problemDetail.title,
+            title: isNewTask ? 
+              (problemDetail.titleCn || problemDetail.title) : 
+              `[复习] ${problemDetail.titleCn || problemDetail.title}`,
             url: problemDetail.url,
             notes: studyRecord?.notes || '',
-            reviewCount: studyRecord?.reviewCount || 0,
+            reviewCount: isNewTask ? 
+              (studyRecord?.reviewCount || 0) : 
+              (studyRecord?.reviewCount || 0) + 1,
             lastReviewDate: studyRecord?.lastReviewDate?.toISOString() || todayStart.toISOString(),
             completed: completedToday,
             addedDate: todayStart.toISOString(),
-            type: 'new',
-            difficulty: problemDetail.difficulty,
-            leetcodeNumber: problemDetail.number
-          })
-        }
-      }
-
-      // 处理复习题目
-      for (const problemId of task.reviewProblems) {
-        const problemDetail = problemMap.get(problemId)
-        const studyRecord = recordMap.get(problemId)
-        const completedToday = todayCompletedMap.has(problemId)
-
-        if (problemDetail) {
-          tasks.push({
-            id: `${task.id}-review-${problemId}`,
-            number: problemNumber++,
-            title: `[复习] ${problemDetail.titleCn || problemDetail.title}`,
-            url: problemDetail.url,
-            notes: studyRecord?.notes || '',
-            reviewCount: (studyRecord?.reviewCount || 0) + 1,
-            lastReviewDate: studyRecord?.lastReviewDate?.toISOString() || todayStart.toISOString(),
-            completed: completedToday,
-            addedDate: todayStart.toISOString(),
-            type: 'review',
+            type: taskItem.taskType,
             difficulty: problemDetail.difficulty,
             leetcodeNumber: problemDetail.number
           })

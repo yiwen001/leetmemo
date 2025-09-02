@@ -15,34 +15,54 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { taskId, problemId, type } = body // type: 'new' | 'review'
+    const { taskItemId } = body
 
-    if (!taskId || !problemId || !type) {
+    if (!taskItemId) {
       return NextResponse.json({ 
         success: false, 
-        error: '缺少必填参数' 
+        error: '缺少必填参数: taskItemId' 
       }, { status: 400 })
     }
 
-    const planId = params.id
-
-    // 验证计划属于当前用户
-    const plan = await prisma.studyPlan.findFirst({
+    // 1. 查找TaskItem并验证权限
+    const taskItem = await prisma.taskItem.findFirst({
       where: {
-        id: planId,
-        userId: session.user.id
+        id: taskItemId,
+        dailyTask: {
+          plan: {
+            userId: session.user.id
+          }
+        }
+      },
+      include: {
+        dailyTask: {
+          include: {
+            plan: true
+          }
+        }
       }
     })
 
-    if (!plan) {
+    if (!taskItem) {
       return NextResponse.json({ 
         success: false, 
-        error: '计划不存在或无权限' 
+        error: '任务不存在或无权限' 
       }, { status: 404 })
     }
 
+    // 2. 更新TaskItem状态（今日任务完成状态）
+    await prisma.taskItem.update({
+      where: { id: taskItemId },
+      data: { completed: true }
+    })
+
+    // 3. 更新长期学习记录（StudyRecord）
+    const problemId = taskItem.problemId
+    const planId = taskItem.dailyTask.planId
+
     // 如果是新题目，添加到已学习列表
-    if (type === 'new') {
+    if (taskItem.taskType === 'new') {
+      const plan = taskItem.dailyTask.plan
       const currentLearned = plan.learnedProblems || []
       if (!currentLearned.includes(problemId)) {
         await prisma.studyPlan.update({
@@ -54,7 +74,7 @@ export async function POST(
       }
     }
 
-    // 创建或更新学习记录
+    // 创建或更新StudyRecord
     const existingRecord = await prisma.studyRecord.findFirst({
       where: {
         userId: session.user.id,
@@ -78,6 +98,7 @@ export async function POST(
         data: {
           userId: session.user.id,
           problemId: problemId,
+          studyPlanId: planId,
           reviewCount: 1,
           lastReviewDate: new Date(),
           completed: true,
@@ -86,13 +107,32 @@ export async function POST(
       })
     }
 
+    // 4. 检查DailyTask是否整体完成
+    const allTaskItems = await prisma.taskItem.findMany({
+      where: { dailyTaskId: taskItem.dailyTaskId }
+    })
+
+    const allCompleted = allTaskItems.every(item => item.completed)
+    
+    if (allCompleted) {
+      await prisma.dailyTask.update({
+        where: { id: taskItem.dailyTaskId },
+        data: { 
+          status: 'completed',
+          completedAt: new Date()
+        }
+      })
+    }
+
     return NextResponse.json({
       success: true,
-      message: '题目标记完成成功'
+      message: '任务完成成功',
+      taskCompleted: true,
+      dailyTaskCompleted: allCompleted
     })
 
   } catch (error) {
-    console.error('标记完成失败:', error)
+    console.error('完成任务失败:', error)
     return NextResponse.json({
       success: false,
       error: '服务器错误'

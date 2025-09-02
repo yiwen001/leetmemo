@@ -24,6 +24,9 @@ export async function GET(
       },
       include: {
         dailyTasks: {
+          include: {
+            taskItems: true
+          },
           orderBy: { day: 'asc' }
         }
       }
@@ -39,7 +42,8 @@ export async function GET(
     // 获取所有题目ID
     const allProblemIds: string[] = []
     plan.dailyTasks.forEach(task => {
-      allProblemIds.push(...task.newProblems, ...task.reviewProblems)
+      const problemIds = task.taskItems.map(item => item.problemId)
+      allProblemIds.push(...problemIds)
     })
 
     // 获取题目详情

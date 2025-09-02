@@ -23,6 +23,7 @@ import PlanRecoveryModal from './components/PlanRecoveryModal/PlanRecoveryModal'
 // 定义数据类型
 interface Problem {
   id: string
+  taskItemId: string
   number: number
   title: string
   url: string
@@ -31,6 +32,7 @@ interface Problem {
   lastReviewDate: string
   completed: boolean
   addedDate: string
+  type: string
 }
 
 export default function HomePage() {
@@ -422,9 +424,7 @@ export default function HomePage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          taskId: problem.id.split('-')[0], // 从复合ID中提取taskId
-          problemId: problem.id.split('-').slice(2).join('-'), // 从复合ID中提取problemId
-          type: problem.reviewCount === 0 ? 'new' : 'review'
+          taskItemId: problem.taskItemId
         })
       })
 

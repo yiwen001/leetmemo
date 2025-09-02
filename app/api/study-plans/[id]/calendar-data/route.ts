@@ -31,10 +31,13 @@ export async function GET(
       }, { status: 404 })
     }
 
-    // 获取所有日常任务
+    // 获取所有日常任务及其TaskItems
     const dailyTasks = await prisma.dailyTask.findMany({
       where: {
         planId: planId
+      },
+      include: {
+        taskItems: true
       },
       orderBy: { day: 'asc' }
     })
@@ -42,7 +45,8 @@ export async function GET(
     // 获取所有相关的题目ID
     const allProblemIds: string[] = []
     dailyTasks.forEach(task => {
-      allProblemIds.push(...task.newProblems, ...task.reviewProblems)
+      const problemIds = task.taskItems.map(item => item.problemId)
+      allProblemIds.push(...problemIds)
     })
 
     // 获取题目详情
@@ -75,34 +79,38 @@ export async function GET(
     // 构建日历数据
     const calendarData = dailyTasks.map(task => {
       // 构建新题目列表
-      const newProblems = task.newProblems.map(problemId => {
-        const problemDetail = problemMap.get(problemId)
-        const studyRecord = recordMap.get(problemId)
-        return {
-          id: problemId,
-          title: problemDetail?.titleCn || problemDetail?.title || '未知题目',
-          number: problemDetail?.number || 0,
-          difficulty: problemDetail?.difficulty || 'unknown',
-          url: problemDetail?.url || '',
-          completed: studyRecord?.completed || false,
-          notes: studyRecord?.notes || ''
-        }
-      })
+      const newProblems = task.taskItems
+        .filter(item => item.taskType === 'new')
+        .map(item => {
+          const problemDetail = problemMap.get(item.problemId)
+          const studyRecord = recordMap.get(item.problemId)
+          return {
+            id: item.problemId,
+            title: problemDetail?.titleCn || problemDetail?.title || '未知题目',
+            number: problemDetail?.number || 0,
+            difficulty: problemDetail?.difficulty || 'unknown',
+            url: problemDetail?.url || '',
+            completed: studyRecord?.completed || false,
+            notes: studyRecord?.notes || ''
+          }
+        })
 
       // 构建复习题目列表
-      const reviewProblems = task.reviewProblems.map(problemId => {
-        const problemDetail = problemMap.get(problemId)
-        const studyRecord = recordMap.get(problemId)
-        return {
-          id: problemId,
-          title: problemDetail?.titleCn || problemDetail?.title || '未知题目',
-          number: problemDetail?.number || 0,
-          difficulty: problemDetail?.difficulty || 'unknown',
-          url: problemDetail?.url || '',
-          completed: studyRecord?.completed || false,
-          notes: studyRecord?.notes || ''
-        }
-      })
+      const reviewProblems = task.taskItems
+        .filter(item => item.taskType === 'review')
+        .map(item => {
+          const problemDetail = problemMap.get(item.problemId)
+          const studyRecord = recordMap.get(item.problemId)
+          return {
+            id: item.problemId,
+            title: problemDetail?.titleCn || problemDetail?.title || '未知题目',
+            number: problemDetail?.number || 0,
+            difficulty: problemDetail?.difficulty || 'unknown',
+            url: problemDetail?.url || '',
+            completed: studyRecord?.completed || false,
+            notes: studyRecord?.notes || ''
+          }
+        })
 
       // 计算当天的完成情况
       const allProblems = [...newProblems, ...reviewProblems]

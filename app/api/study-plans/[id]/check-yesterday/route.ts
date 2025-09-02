@@ -54,6 +54,9 @@ export async function GET(
       where: {
         planId: planId,
         currentDate: { lt: today }
+      },
+      include: {
+        taskItems: true
       }
     })
 
@@ -61,24 +64,26 @@ export async function GET(
       id: t.id,
       day: t.day,
       currentDate: t.currentDate.toISOString().split('T')[0],
-      newProblems: t.newProblems,
-      reviewProblems: t.reviewProblems,
-      newCount: t.newProblems.length,
-      reviewCount: t.reviewProblems.length,
+      taskItemsCount: t.taskItems.length,
+      newCount: t.taskItems.filter(item => item.taskType === 'new').length,
+      reviewCount: t.taskItems.filter(item => item.taskType === 'review').length,
       status: t.status
     })))
 
     // 如果没有找到任何过期任务，直接查询所有任务来调试
     if (pendingTasks.length === 0) {
       const allTasks = await prisma.dailyTask.findMany({
-        where: { planId: planId }
+        where: { planId: planId },
+        include: {
+          taskItems: true
+        }
       })
       console.log('All tasks for this plan:', allTasks.map(t => ({
         id: t.id,
         day: t.day,
         currentDate: t.currentDate.toISOString().split('T')[0],
-        newCount: t.newProblems.length,
-        reviewCount: t.reviewProblems.length,
+        newCount: t.taskItems.filter(item => item.taskType === 'new').length,
+        reviewCount: t.taskItems.filter(item => item.taskType === 'review').length,
         status: t.status
       })))
     }
@@ -86,7 +91,10 @@ export async function GET(
     if (pendingTasks.length === 0) {
       // 查询所有任务来调试
       const allTasks = await prisma.dailyTask.findMany({
-        where: { planId: planId }
+        where: { planId: planId },
+        include: {
+          taskItems: true
+        }
       })
       
       return NextResponse.json({
@@ -103,8 +111,8 @@ export async function GET(
           allTasksForPlan: allTasks.map(t => ({
             day: t.day,
             currentDate: t.currentDate.toISOString().split('T')[0],
-            newCount: t.newProblems.length,
-            reviewCount: t.reviewProblems.length,
+            newCount: t.taskItems.filter((item: any) => item.taskType === 'new').length,
+            reviewCount: t.taskItems.filter((item: any) => item.taskType === 'review').length,
             status: t.status
           }))
         }
@@ -116,7 +124,7 @@ export async function GET(
     const tasksToUpdate = []
 
     for (const task of pendingTasks) {
-      const allTaskProblems = [...task.newProblems, ...task.reviewProblems]
+      const allTaskProblems = task.taskItems.map(item => item.problemId)
       
       // 检查这些题目的完成状态（使用与calendar-data相同的逻辑）
       const completedRecords = await prisma.studyRecord.findMany({
@@ -129,8 +137,12 @@ export async function GET(
       const completedProblemIds = new Set(completedRecords.filter(r => r.completed).map(r => r.problemId))
       
       // 计算未完成的题目
-      const uncompletedNewProblems = task.newProblems.filter(id => !completedProblemIds.has(id))
-      const uncompletedReviewProblems = task.reviewProblems.filter(id => !completedProblemIds.has(id))
+      const uncompletedNewProblems = task.taskItems
+        .filter(item => item.taskType === 'new' && !completedProblemIds.has(item.problemId))
+        .map(item => item.problemId)
+      const uncompletedReviewProblems = task.taskItems
+        .filter(item => item.taskType === 'review' && !completedProblemIds.has(item.problemId))
+        .map(item => item.problemId)
       
       const uncompletedCount = uncompletedNewProblems.length + uncompletedReviewProblems.length
       
@@ -205,12 +217,24 @@ export async function GET(
         const allUncompletedNew = tasksToUpdate.flatMap(t => t.newProblems)
         const allUncompletedReview = tasksToUpdate.flatMap(t => t.reviewProblems)
         
-        await prisma.dailyTask.update({
-          where: { id: todayTask.id },
-          data: {
-            newProblems: Array.from(new Set([...todayTask.newProblems, ...allUncompletedNew])),
-            reviewProblems: Array.from(new Set([...todayTask.reviewProblems, ...allUncompletedReview]))
-          }
+        // 为今天的任务添加未完成的TaskItems
+        const newTaskItems = [
+          ...allUncompletedNew.map(problemId => ({
+            dailyTaskId: todayTask.id,
+            problemId,
+            taskType: 'new',
+            completed: false
+          })),
+          ...allUncompletedReview.map(problemId => ({
+            dailyTaskId: todayTask.id,
+            problemId,
+            taskType: 'review',
+            completed: false
+          }))
+        ]
+        
+        await prisma.taskItem.createMany({
+          data: newTaskItems
         })
 
         // 删除已处理的过期任务
@@ -224,16 +248,34 @@ export async function GET(
         const allUncompletedNew = tasksToUpdate.flatMap(t => t.newProblems)
         const allUncompletedReview = tasksToUpdate.flatMap(t => t.reviewProblems)
         
-        await prisma.dailyTask.create({
+        const newDailyTask = await prisma.dailyTask.create({
           data: {
             planId: planId,
             day: 999, // 特殊标记，表示积压任务
             originalDate: today,
             currentDate: today,
-            newProblems: allUncompletedNew,
-            reviewProblems: allUncompletedReview,
             status: 'pending'
           }
+        })
+
+        // 为新任务创建TaskItems
+        const newTaskItems = [
+          ...allUncompletedNew.map(problemId => ({
+            dailyTaskId: newDailyTask.id,
+            problemId,
+            taskType: 'new',
+            completed: false
+          })),
+          ...allUncompletedReview.map(problemId => ({
+            dailyTaskId: newDailyTask.id,
+            problemId,
+            taskType: 'review',
+            completed: false
+          }))
+        ]
+        
+        await prisma.taskItem.createMany({
+          data: newTaskItems
         })
 
         // 删除已处理的过期任务
@@ -260,8 +302,8 @@ export async function GET(
         allTasksForPlan: pendingTasks.map(t => ({
           day: t.day,
           currentDate: t.currentDate.toISOString().split('T')[0],
-          newCount: t.newProblems.length,
-          reviewCount: t.reviewProblems.length,
+          newCount: t.taskItems.filter((item: any) => item.taskType === 'new').length,
+          reviewCount: t.taskItems.filter((item: any) => item.taskType === 'review').length,
           status: t.status
         }))
       }

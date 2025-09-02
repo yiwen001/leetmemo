@@ -80,7 +80,7 @@ model StudyPlan {
   startDate       DateTime @map("start_date")
   intensity       String   @default("medium")
   duration        Int      @default(30) // 计划天数
-
+  name            String    // 添加这一行
   // 计划核心数据
   planProblems    String[] @map("plan_problems")    // 计划要学的所有题目ID
   learnedProblems String[] @map("learned_problems") // 已学会的题目ID
@@ -106,9 +106,6 @@ model DailyTask {
   originalDate   DateTime @map("original_date")   // 原计划日期
   currentDate    DateTime @map("current_date")    // 当前应完成日期
 
-  newProblems    String[] @map("new_problems")    // 新题目ID数组
-  reviewProblems String[] @map("review_problems") // 复习题目ID数组
-
   status         String   @default("pending") // pending/completed
   completedAt    DateTime? @map("completed_at")
 
@@ -116,8 +113,24 @@ model DailyTask {
 
   // 关联
   plan           StudyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  taskItems      TaskItem[]
 
   @@map("daily_tasks")
+}
+
+model TaskItem {
+  id          String    @id @default(cuid())
+  dailyTaskId String    @map("daily_task_id")
+  problemId   String    @map("problem_id")
+  taskType    String    // "new" or "review"
+  completed   Boolean   @default(false) // 核心！只表示当日是否完成
+
+  // 关联
+  dailyTask   DailyTask @relation(fields: [dailyTaskId], references: [id], onDelete: Cascade)
+  problem     LeetCodeProblem @relation(fields: [problemId], references: [id])
+  
+  @@index([dailyTaskId])
+  @@map("task_items")
 }
 
 model LeetCodeProblem {
@@ -133,7 +146,8 @@ model LeetCodeProblem {
 
   // 关联
   problems    Problem[]
-  studyRecords StudyRecord[]  // 添加这行
+  studyRecords StudyRecord[]
+  taskItems   TaskItem[]  // 新增关联
 
   @@map("leetcode_problems")
 }
