@@ -26,14 +26,24 @@ export async function GET(
       // 如果模拟模块不存在，使用真实时间
     }
     
-    console.log('Looking for tasks on or before UTC date:', now.toISOString().split('T')[0])
+    // 计算今天的UTC日期范围
+    const today = new Date(now)
+    today.setUTCHours(0, 0, 0, 0)
+    const tomorrow = new Date(today)
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1)
+    
+    console.log('Looking for today tasks (UTC):', {
+      today: today.toISOString().split('T')[0],
+      now: now.toISOString().split('T')[0]
+    })
 
-    // 查找今天及之前应该完成的所有任务（未完成的会自动显示）
-    const allRelevantTasks = await prisma.dailyTask.findMany({
+    // 只查找今天的任务，不包含历史任务
+    const todayTasks = await prisma.dailyTask.findMany({
       where: {
         planId: planId,
         currentDate: {
-          lte: now  // 小于等于当前UTC时间的所有任务
+          gte: today,
+          lt: tomorrow
         }
       },
       include: {
@@ -42,7 +52,7 @@ export async function GET(
       orderBy: { day: 'asc' }
     })
 
-    console.log('Found tasks on or before today:', allRelevantTasks.length, allRelevantTasks.map(t => ({ 
+    console.log('Found today tasks:', todayTasks.length, todayTasks.map(t => ({ 
       day: t.day, 
       currentDate: t.currentDate.toISOString().split('T')[0],
       taskItemsCount: t.taskItems.length
@@ -50,7 +60,7 @@ export async function GET(
 
     // 获取所有相关的题目ID
     const allProblemIds: string[] = []
-    allRelevantTasks.forEach(task => {
+    todayTasks.forEach(task => {
       const problemIds = task.taskItems.map(item => item.problemId)
       allProblemIds.push(...problemIds)
     })
@@ -86,7 +96,7 @@ export async function GET(
     const tasks = []
     let problemNumber = 1
 
-    for (const task of allRelevantTasks) {
+    for (const task of todayTasks) {
       // 处理所有TaskItems
       for (const taskItem of task.taskItems) {
         const problemDetail = problemMap.get(taskItem.problemId)

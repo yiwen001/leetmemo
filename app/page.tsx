@@ -552,14 +552,52 @@ export default function HomePage() {
       {/* 主内容区 */}
       <main className={styles.main}>
         {/* 进度统计 */}
-        <ProgressStats
-          totalProblems={totalProblems}
-          completedProblems={completedProblems}
-          todayCompleted={completedProblems}
-          todayTarget={todayTarget}
-          streak={7} // 临时数据
-          loading={dataLoading}
-        />
+        {/* 简化的进度显示 */}
+        <div style={{
+          padding: '20px',
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          marginBottom: '20px'
+        }}>
+          <h3 style={{ marginBottom: '16px', color: '#1f2937' }}>学习进度</h3>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '16px',
+            marginBottom: '12px'
+          }}>
+            <div style={{
+              flex: 1,
+              height: '8px',
+              backgroundColor: '#f3f4f6',
+              borderRadius: '4px',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                height: '100%',
+                backgroundColor: '#10b981',
+                width: `${totalProblems > 0 ? (completedProblems / totalProblems) * 100 : 0}%`,
+                transition: 'width 0.3s ease'
+              }}></div>
+            </div>
+            <span style={{ 
+              fontSize: '14px', 
+              fontWeight: '600',
+              color: '#374151',
+              minWidth: '80px'
+            }}>
+              {completedProblems} / {totalProblems}
+            </span>
+          </div>
+          <p style={{ 
+            fontSize: '14px', 
+            color: '#6b7280', 
+            margin: 0 
+          }}>
+            已完成 {totalProblems > 0 ? ((completedProblems / totalProblems) * 100).toFixed(1) : 0}%
+          </p>
+        </div>
 
         {/* 学习日历 - 可折叠 */}
         {studyPlan && (
