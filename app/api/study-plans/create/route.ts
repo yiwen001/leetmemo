@@ -94,22 +94,27 @@ export async function POST(request: Request) {
     
     // 题目ID验证已在上面完成，这里不需要重复验证
 
-    // 创建学习计划
-    const plan = await prisma.studyPlan.create({
-      data: {
-        userId: session.user.id,
-        startDate: parsedStartDate,
-        duration: Number(duration),
-        intensity,
-        planProblems: problemIds,
-        learnedProblems: [],
-        status: 'active',
-        name
-      }
-    })
+    // 使用事务确保数据一致性
+    const plan = await prisma.$transaction(async (tx) => {
+      // 创建学习计划
+      const newPlan = await tx.studyPlan.create({
+        data: {
+          userId: session.user.id,
+          startDate: parsedStartDate,
+          duration: Number(duration),
+          intensity,
+          planProblems: problemIds,
+          learnedProblems: [],
+          status: 'active',
+          name
+        }
+      })
 
-    // 生成每日任务
-    await generateDailyTasks(plan.id, problemIds, Number(duration), intensity, parsedStartDate)
+      // 生成每日任务（在同一事务中）
+      await generateDailyTasksInTransaction(tx, newPlan.id, problemIds, Number(duration), intensity, parsedStartDate)
+      
+      return newPlan
+    })
 
     return NextResponse.json({ 
       success: true, 
@@ -125,8 +130,9 @@ export async function POST(request: Request) {
   }
 }
 
-// 生成每日任务的函数（使用新的TaskItem架构）
-async function generateDailyTasks(
+// 生成每日任务的函数（事务版本）
+async function generateDailyTasksInTransaction(
+  tx: any,
   planId: string, 
   problems: string[], 
   duration: number, 
@@ -151,7 +157,7 @@ async function generateDailyTasks(
     currentDate.setUTCHours(0, 0, 0, 0)
 
     // 1. 创建DailyTask记录
-    const dailyTask = await prisma.dailyTask.create({
+    const dailyTask = await tx.dailyTask.create({
       data: {
         planId,
         day,
@@ -213,7 +219,7 @@ async function generateDailyTasks(
     // 7. 批量创建所有TaskItem
     if (newTaskItems.length > 0 || reviewTaskItems.length > 0) {
       try {
-        await prisma.taskItem.createMany({
+        await tx.taskItem.createMany({
           data: [...newTaskItems, ...reviewTaskItems]
         })
       } catch (error: any) {
