@@ -1,17 +1,20 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Calendar, Plus, BookOpen, ChevronDown, ChevronUp, User, LogOut, Settings, Target, CheckCircle } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useSession, signOut } from 'next-auth/react'
+import { Calendar, Target, Clock, BookOpen, User, Settings, LogOut, Plus, Trash2, Eye, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react'
+import { message, Dropdown, Spin, Modal } from 'antd'
+import type { MenuProps } from 'antd'
 import Link from 'next/link'
-import { Modal, message, Dropdown } from 'antd'
 import ReactMarkdown from 'react-markdown'
 import rehypeSanitize from 'rehype-sanitize'
 import rehypeRaw from 'rehype-raw'
 import remarkGfm from 'remark-gfm'
-import styles from './page.module.sass'
-import { useSession, signOut } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import 'antd/dist/reset.css'
+import styles from './page.module.sass'
+import SettingsModal from './components/SettingsModal/SettingsModal'
+import UserAvatar from './components/UserAvatar/UserAvatar'
 
 // 导入新组件
 import StudyCalendarNew from './components/StudyCalendar/StudyCalendarNew'
@@ -46,6 +49,7 @@ export default function HomePage() {
   const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false)
   const [recoveryData, setRecoveryData] = useState<any>(null)
   const [recoveryLoading, setRecoveryLoading] = useState(false)
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
 
   // 使用 useEffect 处理重定向
   useEffect(() => {
@@ -259,18 +263,44 @@ export default function HomePage() {
     message.success('已退出登录')
   }
 
+  // 处理设置更新
+  const handleSettingsUpdate = async (data: { name: string; image: string }) => {
+    try {
+      const response = await fetch('/api/user/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        // 更新成功后强制刷新session
+        await fetch('/api/auth/session?update')
+        window.location.reload()
+      } else {
+        throw new Error(result.error || '更新失败')
+      }
+    } catch (error) {
+      console.error('更新设置失败:', error)
+      throw error
+    }
+  }
+
   // 用户下拉菜单
   const userMenuItems = [
-    {
-      key: 'profile',
-      label: (
-        <div className={styles.menuItem}>
-          <User size={16} />
-          <span>个人资料</span>
-        </div>
-      ),
-      onClick: () => message.info('个人资料功能开发中...')
-    },
+    // {
+    //   key: 'profile',
+    //   label: (
+    //     <div className={styles.menuItem}>
+    //       <User size={16} />
+    //       <span>个人资料</span>
+    //     </div>
+    //   ),
+    //   onClick: () => message.info('个人资料功能开发中...')
+    // },
     {
       type: 'divider' as const
     },
@@ -282,7 +312,7 @@ export default function HomePage() {
           <span>设置</span>
         </div>
       ),
-      onClick: () => message.info('设置功能开发中...')
+      onClick: () => setIsSettingsModalOpen(true)
     },
     {
       key: 'logout',
@@ -466,17 +496,12 @@ export default function HomePage() {
               trigger={['click']}
             >
               <div className={styles.userProfile}>
-                <div className={styles.userAvatar}>
-                  {session?.user?.image ? (
-                    <img 
-                      src={session.user.image} 
-                      alt={session.user.name || 'User'} 
-                      className={styles.avatarImage}
-                    />
-                  ) : (
-                    <User size={20} />
-                  )}   
-                </div>
+                <UserAvatar
+                  image={session?.user?.image}
+                  name={session?.user?.name}
+                  size={40}
+                  className={styles.userAvatar}
+                />
                 <div className={styles.userInfo}>
                   <div className={styles.userName}>
                     {session?.user?.name || session?.user?.email || 'User'}
@@ -783,6 +808,18 @@ export default function HomePage() {
         onRecover={handleRecoverPlan}
         loading={recoveryLoading}
         remainingProblems={recoveryData?.remainingProblems || 0}
+      />
+
+      {/* 设置弹窗 */}
+      <SettingsModal
+        visible={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        currentUser={{
+          name: session?.user?.name || '',
+          email: session?.user?.email || '',
+          image: session?.user?.image || ''
+        }}
+        onUpdate={handleSettingsUpdate}
       />
     </div>
   )

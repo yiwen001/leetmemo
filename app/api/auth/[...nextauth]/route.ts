@@ -74,9 +74,30 @@ export const authOptions = {
     },
 
     async session({ session, token }) {
-      // 将用户ID添加到session中
+      // 将用户ID添加到session中，并从数据库获取最新用户信息
       if (session?.user && token?.userId) {
         session.user.id = token.userId
+        
+        try {
+          // 从数据库获取最新的用户信息
+          const user = await prisma.user.findUnique({
+            where: { id: token.userId },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true
+            }
+          })
+          
+          if (user) {
+            session.user.name = user.name
+            session.user.email = user.email
+            session.user.image = user.avatarUrl
+          }
+        } catch (error) {
+          console.error('获取用户信息失败:', error)
+        }
       }
       console.log('Session回调 - 最终session:', session)
       return session

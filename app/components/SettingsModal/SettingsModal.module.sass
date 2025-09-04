@@ -1,0 +1,136 @@
+.settingsModal
+  .ant-modal-header
+    border-bottom: 1px solid #f0f0f0
+    padding: 16px 24px
+
+  .ant-modal-body
+    padding: 24px
+
+.modalTitle
+  display: flex
+  align-items: center
+  gap: 8px
+  font-weight: 600
+  color: #1f2937
+
+.modalContent
+  display: flex
+  flex-direction: column
+  gap: 24px
+
+.section
+  display: flex
+  flex-direction: column
+  gap: 12px
+
+.sectionTitle
+  display: flex
+  align-items: center
+  gap: 6px
+  font-size: 16px
+  font-weight: 600
+  color: #374151
+  margin: 0
+
+.nameInput
+  height: 40px
+  border-radius: 8px
+  border: 1px solid #d1d5db
+  transition: all 0.3s ease
+
+  &:focus
+    border-color: #667eea
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1)
+
+.currentAvatar
+  display: flex
+  align-items: center
+  gap: 12px
+  padding: 16px
+  background: #f8fafc
+  border-radius: 12px
+  border: 1px solid #e5e7eb
+
+.previewLabel
+  font-size: 14px
+  color: #6b7280
+  font-weight: 500
+
+.avatarLabel
+  font-size: 12px
+  color: #6b7280
+  font-weight: 500
+
+.avatarGrid
+  display: grid
+  grid-template-columns: repeat(8, 1fr)
+  gap: 12px
+  padding: 16px
+  background: #ffffff
+  border: 1px solid #e5e7eb
+  border-radius: 12px
+
+.avatarOption
+  display: flex
+  align-items: center
+  justify-content: center
+  cursor: pointer
+  border-radius: 50%
+  transition: all 0.3s ease
+  border: 2px solid transparent
+  
+  &:hover
+    transform: scale(1.1)
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15)
+
+  &.selected
+    border-color: #667eea
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2)
+    transform: scale(1.05)
+
+.emojiAvatar
+  display: flex
+  align-items: center
+  justify-content: center
+  border-radius: 50%
+  background: #ffffff
+  border: 1px solid #e5e7eb
+  user-select: none
+
+.colorAvatar
+  display: flex
+  align-items: center
+  justify-content: center
+  border-radius: 50%
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1)
+
+.actions
+  display: flex
+  justify-content: flex-end
+  gap: 12px
+  padding-top: 16px
+  border-top: 1px solid #f0f0f0
+
+.cancelButton
+  height: 40px
+  border-radius: 8px
+  border: 1px solid #d1d5db
+  color: #6b7280
+  font-weight: 500
+
+  &:hover
+    border-color: #9ca3af
+    color: #374151
+
+.saveButton
+  height: 40px
+  border-radius: 8px
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)
+  border: none
+  font-weight: 600
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3)
+  transition: all 0.3s ease
+
+  &:hover
+    transform: translateY(-1px)
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4)
