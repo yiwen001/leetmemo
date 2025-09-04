@@ -114,23 +114,7 @@ export default function LoginPage() {
   className={styles.giteeButton}
   onClick={handleGiteeLogin}
   disabled={isLoading}
-  style={{
-    width: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '12px',
-    padding: '16px 24px',
-    background: '#C71D23',
-    color: 'white',
-    border: 'none',
-    borderRadius: '12px',
-    fontSize: '1rem',
-    fontWeight: '500',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    marginBottom: '16px'
-  }}
+ 
 >
   <span>🦄</span>
   <span>{isLoading ? '登录中...' : '使用 Gitee 登录'}</span>

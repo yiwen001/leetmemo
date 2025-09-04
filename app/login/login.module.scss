@@ -217,6 +217,23 @@
     }
   }
 }
+.giteeButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background: #6975DD;
+  color: rgba(255, 255, 255, 1);
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 16px;
+}
 
 // 响应式设计
 @media (max-width: 768px) {
