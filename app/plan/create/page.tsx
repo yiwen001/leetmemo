@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { ArrowLeft, Calendar, Target, Clock, BookOpen, Plus, Filter, Eye, Search, CheckSquare, Square } from 'lucide-react'
-import { message, DatePicker, Select, Slider, Radio, Checkbox, Spin, Input, Button } from 'antd'
+import { ArrowLeft, Calendar, Target, Clock, BookOpen, Filter, Search, CheckSquare, Square, Zap } from 'lucide-react'
+import { message, DatePicker, Select, Slider, Checkbox, Spin, Input, Button } from 'antd'
 import dayjs from 'dayjs'
 import styles from './page.module.sass'
-import { DEFAULT_PROBLEMS } from '@/lib/default-study-plan'
+import { DEFAULT_PLAN_CONFIG } from '@/lib/default-study-plan'
 
 const { Option } = Select
 
@@ -19,6 +19,7 @@ interface LeetCodeProblem {
   difficulty: string
   category: string
   tags: string[]
+  slug: string
 }
 
 export default function CreatePlanPage() {
@@ -27,7 +28,6 @@ export default function CreatePlanPage() {
   const [loading, setLoading] = useState(false)
 
   // 计划基本信息
-  const [planMode, setPlanMode] = useState<'default' | 'custom'>('default')
   const [planName, setPlanName] = useState('')
   const [duration, setDuration] = useState(30)
   const [intensity, setIntensity] = useState('medium')
@@ -41,21 +41,8 @@ export default function CreatePlanPage() {
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState<string>('')
   
-  // 手动添加题目相关状态
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [newProblem, setNewProblem] = useState({
-    url: '',
-    title: '',
-    titleCn: '',
-    difficulty: 'medium',
-    category: 'Array',
-    number: ''
-  })
-  const [addingProblem, setAddingProblem] = useState(false)
-  
   // 预览相关状态
   const [showPreview, setShowPreview] = useState(false)
-  const [showDefaultPreview, setShowDefaultPreview] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -63,10 +50,16 @@ export default function CreatePlanPage() {
       return
     }
 
-    if (status === 'authenticated' && planMode === 'custom') {
+    if (status === 'authenticated') {
       fetchProblems()
     }
-  }, [status, router, planMode])
+  }, [status, router])
+
+  // 快速选择30题速成版
+  const selectSpeedRunProblems = () => {
+    setSelectedProblems(DEFAULT_PLAN_CONFIG.problemSlugs)
+    message.success('已选择30题速成版题目')
+  }
 
   const fetchProblems = async () => {
     setProblemsLoading(true)
@@ -86,153 +79,13 @@ export default function CreatePlanPage() {
     }
   }
 
-  // 从URL解析题目标题
-  const parseTitle = (url: string) => {
-    try {
-      const urlObj = new URL(url)
-      const pathname = urlObj.pathname
-      const match = pathname.match(/\/problems\/([^\/]+)/)
-      if (match) {
-        return match[1].split('-').map(word => 
-          word.charAt(0).toUpperCase() + word.slice(1)
-        ).join(' ')
-      }
-    } catch (e) {
-      // 无效URL
-    }
-    return ''
+  const toggleProblemSelection = (problemSlug: string) => {
+    setSelectedProblems(prev => 
+      prev.includes(problemSlug) 
+        ? prev.filter(slug => slug !== problemSlug)
+        : [...prev, problemSlug]
+    )
   }
-
-  // 从URL解析题目slug
-  const parseSlug = (url: string) => {
-    try {
-      const urlObj = new URL(url)
-      const pathname = urlObj.pathname
-      const match = pathname.match(/\/problems\/([^\/]+)/)
-      if (match) {
-        return match[1] // 返回slug，如 "two-sum" 或 "1-two-sum"
-      }
-    } catch (e) {
-      // 无效URL
-    }
-    return ''
-  }
-
-  // 从URL解析题目编号
-  const parseNumber = (url: string) => {
-    try {
-      const slug = parseSlug(url)
-      if (slug) {
-        // 尝试从slug中提取数字，如果没有则返回null
-        const numberMatch = slug.match(/^(\d+)/)
-        return numberMatch ? parseInt(numberMatch[1]) : null
-      }
-    } catch (e) {
-      // 无效URL
-    }
-    return null
-  }
-
-  // 处理URL变化
-  const handleUrlChange = (url: string) => {
-    const parsedNumber = url ? parseNumber(url) : null
-    setNewProblem(prev => ({
-      ...prev,
-      url,
-      title: url ? parseTitle(url) : prev.title,
-      number: parsedNumber ? parsedNumber.toString() : ''
-    }))
-  }
-
-  // 手动添加题目
-  const handleAddProblem = async () => {
-    if (!newProblem.url) {
-      message.error('请填写题目链接')
-      return
-    }
-
-    setAddingProblem(true)
-    try {
-      const response = await fetch('/api/leetcode-problems', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          slug: parseSlug(newProblem.url),
-          url: newProblem.url,
-          title: newProblem.title || parseTitle(newProblem.url),
-          titleCn: newProblem.titleCn || newProblem.title || parseTitle(newProblem.url),
-          difficulty: newProblem.difficulty,
-          category: newProblem.category,
-          number: newProblem.number ? parseInt(newProblem.number) : null,
-          tags: [newProblem.category]
-        })
-      })
-
-      const result = await response.json()
-      if (result.success) {
-        message.success('题目添加成功')
-        // 重新获取题库数据
-        await fetchProblems()
-        // 重置表单
-        setNewProblem({
-          url: '',
-          title: '',
-          titleCn: '',
-          difficulty: 'medium',
-          category: 'Array',
-          number: ''
-        })
-        setShowAddForm(false)
-      } else {
-        message.error(result.error || '添加题目失败')
-      }
-    } catch (error) {
-      console.error('添加题目失败:', error)
-      message.error('添加题目失败')
-    } finally {
-      setAddingProblem(false)
-    }
-  }
-
-  // 获取选中的题目详情
-  const getSelectedProblemsDetails = () => {
-    return problems.filter(problem => selectedProblems.includes(problem.id))
-  }
-
-  // 过滤题目
-  const filteredProblems = problems.filter(problem => {
-    const difficultyMatch = filterDifficulty === 'all' || problem.difficulty === filterDifficulty
-    const categoryMatch = filterCategory === 'all' || problem.category === filterCategory
-    const searchMatch = searchQuery === '' || 
-      problem.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      problem.titleCn.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      problem.number.toString().includes(searchQuery)
-    return difficultyMatch && categoryMatch && searchMatch
-  })
-
-  // 获取分类列表
-  const categories = [...new Set(problems.map(p => p.category))]
-
-  // 全选/取消全选功能
-  const handleSelectAll = () => {
-    const filteredIds = filteredProblems.map(p => p.id)
-    const allSelected = filteredIds.every(id => selectedProblems.includes(id))
-    
-    if (allSelected) {
-      // 取消选择当前筛选结果中的所有题目
-      setSelectedProblems(prev => prev.filter(id => !filteredIds.includes(id)))
-    } else {
-      // 选择当前筛选结果中的所有题目
-      const newSelections = filteredIds.filter(id => !selectedProblems.includes(id))
-      setSelectedProblems(prev => [...prev, ...newSelections])
-    }
-  }
-
-  // 检查当前筛选结果是否全部选中
-  const isAllSelected = filteredProblems.length > 0 && 
-    filteredProblems.every(problem => selectedProblems.includes(problem.id))
 
   const handleSubmit = async () => {
     if (!planName.trim()) {
@@ -245,22 +98,21 @@ export default function CreatePlanPage() {
       return
     }
 
-    if (planMode === 'custom' && selectedProblems.length === 0) {
+    if (selectedProblems.length === 0) {
       message.error('请至少选择一道题目')
       return
     }
 
-    const planData = {
-      name: planName,
-      mode: planMode,
-      duration,
-      intensity,
-      startDate: startDate.format('YYYY-MM-DD'),
-      selectedProblems: planMode === 'custom' ? selectedProblems : []
-    }
-    
     setLoading(true)
     try {
+      const planData = {
+        name: planName,
+        problemSlugs: selectedProblems,
+        duration,
+        startDate: startDate.format('YYYY-MM-DD'),
+        intensity
+      }
+
       const response = await fetch('/api/study-plans/create', {
         method: 'POST',
         headers: {
@@ -275,23 +127,35 @@ export default function CreatePlanPage() {
         message.success('学习计划创建成功！')
         router.push('/')
       } else {
-        message.error(result.error || '创建计划失败')
+        message.error(result.error || '创建失败')
       }
     } catch (error) {
-      console.error('创建计划失败:', error)
-      message.error('创建计划失败，请重试')
+      console.error('创建学习计划失败:', error)
+      message.error('创建失败，请重试')
     } finally {
       setLoading(false)
     }
   }
 
+  // 过滤题目
+  const filteredProblems = problems.filter(problem => {
+    const matchesSearch = !searchQuery || 
+      problem.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      problem.titleCn.includes(searchQuery) ||
+      problem.number.toString().includes(searchQuery)
+    
+    const matchesDifficulty = filterDifficulty === 'all' || problem.difficulty === filterDifficulty
+    const matchesCategory = filterCategory === 'all' || problem.category === filterCategory
+    
+    return matchesSearch && matchesDifficulty && matchesCategory
+  })
+
+  const categories = [...new Set(problems.map(p => p.category))]
+
   if (status === 'loading') {
     return (
-      <div className={styles.container}>
-        <div className={styles.loading}>
-          <div className={styles.spinner}></div>
-          <p>加载中...</p>
-        </div>
+      <div className={styles.loadingContainer}>
+        <Spin size="large" />
       </div>
     )
   }
@@ -299,354 +163,225 @@ export default function CreatePlanPage() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <button 
+        <Button 
+          type="text" 
+          icon={<ArrowLeft />} 
+          onClick={() => router.back()}
           className={styles.backButton}
-          onClick={() => router.push('/')}
         >
-          <ArrowLeft size={20} />
-          返回首页
-        </button>
-        <h1>创建学习计划</h1>
+          返回
+        </Button>
+        <h1 className={styles.title}>创建学习计划</h1>
       </div>
 
       <div className={styles.content}>
         <div className={styles.formSection}>
-          {/* 计划模式选择 */}
-          <div className={styles.formGroup}>
-            <label className={styles.label}>
-              <Target className={styles.labelIcon} />
-              计划模式
-            </label>
-            <Radio.Group 
-              value={planMode} 
-              onChange={(e) => setPlanMode(e.target.value)}
-              className={styles.radioGroup}
-            >
-              <div className={styles.radioOption}>
-                <Radio value="default">使用默认计划 (精选{DEFAULT_PROBLEMS.length}道经典题目)</Radio>
-                <Button 
-                  type="link" 
-                  size="small"
-                  icon={<Eye size={14} />}
-                  onClick={() => setShowDefaultPreview(!showDefaultPreview)}
-                >
-                  {showDefaultPreview ? '隐藏预览' : '预览题目'}
-                </Button>
-              </div>
-              <Radio value="custom">自定义选题 (从题库中选择)</Radio>
-            </Radio.Group>
+          {/* 计划基本信息 */}
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>基本信息</h2>
             
-            {/* 默认计划预览 */}
-            {planMode === 'default' && showDefaultPreview && (
-              <div className={styles.defaultPreview}>
-                <h4>默认学习计划包含以下题目：</h4>
-                <div className={styles.defaultProblemList}>
-                  {DEFAULT_PROBLEMS.map((problem, index) => (
-                    <div key={index} className={styles.defaultProblemItem}>
-                      <span className={styles.defaultProblemNumber}>{index + 1}.</span>
-                      <span className={styles.defaultProblemTitle}>{problem.name}</span>
-                      <a 
-                        href={problem.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className={styles.defaultProblemLink}
-                      >
-                        查看题目
-                      </a>
+            <div className={styles.field}>
+              <label className={styles.label}>
+                <BookOpen className={styles.labelIcon} />
+                计划名称
+              </label>
+              <Input
+                placeholder="请输入学习计划名称"
+                value={planName}
+                onChange={(e) => setPlanName(e.target.value)}
+                className={styles.input}
+              />
+            </div>
+
+            <div className={styles.fieldRow}>
+              <div className={styles.field}>
+                <label className={styles.label}>
+                  <Calendar className={styles.labelIcon} />
+                  开始日期
+                </label>
+                <DatePicker
+                  value={startDate}
+                  onChange={(date) => setStartDate(date)}
+                  className={styles.datePicker}
+                  placeholder="选择开始日期"
+                />
+              </div>
+
+              <div className={styles.field}>
+                <label className={styles.label}>
+                  <Clock className={styles.labelIcon} />
+                  计划天数
+                </label>
+                <Slider
+                  min={7}
+                  max={90}
+                  value={duration}
+                  onChange={(value) => setDuration(value)}
+                  className={styles.slider}
+                />
+                <span className={styles.sliderValue}>{duration} 天</span>
+              </div>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>
+                <Target className={styles.labelIcon} />
+                学习强度
+              </label>
+              <Select
+                value={intensity}
+                onChange={(value) => setIntensity(value)}
+                className={styles.select}
+              >
+                <Option value="easy">轻松 (每天 1-2 题)</Option>
+                <Option value="medium">适中 (每天 2-3 题)</Option>
+                <Option value="hard">高强度 (每天 3-4 题)</Option>
+              </Select>
+            </div>
+          </div>
+
+          {/* 题目选择 */}
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>选择题目</h2>
+              <Button 
+                type="primary" 
+                icon={<Zap />}
+                onClick={selectSpeedRunProblems}
+                className={styles.speedRunButton}
+              >
+                30题速成版
+              </Button>
+            </div>
+
+            {/* 筛选器 */}
+            <div className={styles.filters}>
+              <div className={styles.searchBox}>
+                <Search className={styles.searchIcon} />
+                <Input
+                  placeholder="搜索题目名称或编号"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={styles.searchInput}
+                />
+              </div>
+
+              <Select
+                value={filterDifficulty}
+                onChange={setFilterDifficulty}
+                className={styles.filterSelect}
+                placeholder="难度"
+              >
+                <Option value="all">全部难度</Option>
+                <Option value="easy">简单</Option>
+                <Option value="medium">中等</Option>
+                <Option value="hard">困难</Option>
+              </Select>
+
+              <Select
+                value={filterCategory}
+                onChange={setFilterCategory}
+                className={styles.filterSelect}
+                placeholder="分类"
+              >
+                <Option value="all">全部分类</Option>
+                {categories.map(category => (
+                  <Option key={category} value={category}>{category}</Option>
+                ))}
+              </Select>
+
+              <div className={styles.selectedCount}>
+                已选择 {selectedProblems.length} 道题目
+              </div>
+            </div>
+
+            {/* 题目列表 */}
+            <div className={styles.problemList}>
+              {problemsLoading ? (
+                <div className={styles.loading}>
+                  <Spin />
+                  <span>加载题目中...</span>
+                </div>
+              ) : (
+                <div className={styles.problemsGrid}>
+                  {filteredProblems.map(problem => (
+                    <div 
+                      key={problem.id} 
+                      className={`${styles.problemItem} ${selectedProblems.includes(problem.slug) ? styles.selected : ''}`}
+                      onClick={() => toggleProblemSelection(problem.slug)}
+                    >
+                      <div className={styles.problemCheckbox}>
+                        {selectedProblems.includes(problem.slug) ? 
+                          <CheckSquare className={styles.checkedIcon} /> : 
+                          <Square className={styles.uncheckedIcon} />
+                        }
+                      </div>
+                      <div className={styles.problemInfo}>
+                        <div className={styles.problemHeader}>
+                          <span className={styles.problemNumber}>#{problem.number}</span>
+                          <span className={styles.problemTitle}>{problem.titleCn}</span>
+                          <span className={`${styles.difficulty} ${styles[problem.difficulty]}`}>
+                            {problem.difficulty === 'easy' ? '简单' : 
+                             problem.difficulty === 'medium' ? '中等' : '困难'}
+                          </span>
+                        </div>
+                        <div className={styles.problemMeta}>
+                          <span className={styles.problemCategory}>{problem.category}</span>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
-                <div className={styles.defaultPlanInfo}>
-                  <p>这些题目涵盖了算法面试的核心知识点，包括：</p>
-                  <ul>
-                    <li>字符串处理与数组操作</li>
-                    <li>哈希表与双指针技巧</li>
-                    <li>栈与队列的应用</li>
-                    <li>链表基础操作</li>
-                    <li>二叉树遍历与递归</li>
-                  </ul>
-                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* 选中题目预览 */}
+        {selectedProblems.length > 0 && (
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>已选择题目 ({selectedProblems.length})</h2>
+              <Button 
+                type="text" 
+                onClick={() => setShowPreview(!showPreview)}
+                className={styles.togglePreviewButton}
+              >
+                {showPreview ? '收起' : '展开'}
+              </Button>
+            </div>
+            
+            {showPreview && (
+              <div className={styles.selectedProblemsGrid}>
+                {problems
+                  .filter(problem => selectedProblems.includes(problem.slug))
+                  .map(problem => (
+                    <div key={problem.id} className={styles.selectedProblemItem}>
+                      <span className={styles.problemNumber}>#{problem.number}</span>
+                      <span className={styles.problemTitle}>{problem.titleCn}</span>
+                      <span className={`${styles.difficulty} ${styles[problem.difficulty]}`}>
+                        {problem.difficulty === 'easy' ? '简单' : 
+                         problem.difficulty === 'medium' ? '中等' : '困难'}
+                      </span>
+                    </div>
+                  ))}
               </div>
             )}
           </div>
+        )}
 
-          {/* 计划名称 */}
-          <div className={styles.formGroup}>
-            <label className={styles.label}>
-              <BookOpen className={styles.labelIcon} />
-              计划名称
-            </label>
-            <Input
-              placeholder="例如：算法基础训练"
-              value={planName}
-              onChange={(e) => setPlanName(e.target.value)}
-              className={styles.input}
-            />
-          </div>
-
-          {/* 自定义选题 */}
-          {planMode === 'custom' && (
-            <div className={styles.formGroup}>
-              <label className={styles.label}>选择题目</label>
-              <div className={styles.problemSelection}>
-                {/* 操作按钮 */}
-                <div className={styles.actionButtons}>
-                  <Button 
-                    type="dashed" 
-                    onClick={() => setShowAddForm(!showAddForm)}
-                    icon={<Plus size={14} />}
-                  >
-                    {showAddForm ? '取消添加' : '手动添加题目'}
-                  </Button>
-                  <Button 
-                    type="primary" 
-                    ghost
-                    onClick={() => setShowPreview(!showPreview)}
-                    disabled={selectedProblems.length === 0}
-                  >
-                    预览选中题目 ({selectedProblems.length})
-                  </Button>
-                </div>
-
-                {/* 手动添加题目表单 */}
-                {showAddForm && (
-                  <div className={styles.addForm}>
-                    <h4>添加新题目</h4>
-                    <div className={styles.addFormGrid}>
-                      <Input
-                        placeholder="题目链接 (必填，如: https://leetcode.com/problems/two-sum/)"
-                        value={newProblem.url}
-                        onChange={(e) => handleUrlChange(e.target.value)}
-                      />
-                      <div className={styles.addFormRow}>
-                        <Input
-                          placeholder="题目编号 (自动解析)"
-                          value={newProblem.number}
-                          onChange={(e) => setNewProblem({...newProblem, number: e.target.value})}
-                        />
-                        <Select
-                          value={newProblem.difficulty}
-                          onChange={(value) => setNewProblem({...newProblem, difficulty: value})}
-                        >
-                          <Option value="easy">简单</Option>
-                          <Option value="medium">中等</Option>
-                          <Option value="hard">困难</Option>
-                        </Select>
-                      </div>
-                      <Input
-                        placeholder="题目标题 (自动解析，可修改)"
-                        value={newProblem.title}
-                        onChange={(e) => setNewProblem({...newProblem, title: e.target.value})}
-                      />
-                      <Input
-                        placeholder="题目标题 (中文，可选)"
-                        value={newProblem.titleCn}
-                        onChange={(e) => setNewProblem({...newProblem, titleCn: e.target.value})}
-                      />
-                      <Input
-                        placeholder="分类 (如: Array)"
-                        value={newProblem.category}
-                        onChange={(e) => setNewProblem({...newProblem, category: e.target.value})}
-                      />
-                      <Button 
-                        type="primary" 
-                        onClick={handleAddProblem}
-                        loading={addingProblem}
-                        className={styles.addButton}
-                      >
-                        添加题目
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* 预览选中题目 */}
-                {showPreview && selectedProblems.length > 0 && (
-                  <div className={styles.preview}>
-                    <h4>已选择的题目 ({selectedProblems.length} 道)</h4>
-                    <div className={styles.previewList}>
-                      {getSelectedProblemsDetails().map((problem, index) => (
-                        <div key={problem.id} className={styles.previewItem}>
-                          <div className={styles.previewInfo}>
-                            <span className={styles.previewNumber}>{index + 1}.</span>
-                            <span className={`${styles.difficultyBadge} ${styles[problem.difficulty]}`}>
-                              {problem.difficulty}
-                            </span>
-                            <span className={styles.previewTitle}>
-                              {problem.titleCn || problem.title}
-                            </span>
-                            <span className={styles.previewCategory}>{problem.category}</span>
-                          </div>
-                          <Button 
-                            type="text" 
-                            size="small"
-                            onClick={() => setSelectedProblems(prev => prev.filter(id => id !== problem.id))}
-                          >
-                            移除
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* 搜索和筛选器 */}
-                <div className={styles.searchAndFilters}>
-                  <div className={styles.searchBox}>
-                    <Search className={styles.searchIcon} size={16} />
-                    <Input
-                      placeholder="搜索题目名称或编号..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className={styles.searchInput}
-                      allowClear
-                    />
-                  </div>
-                  <div className={styles.filters}>
-                    <Select
-                      value={filterDifficulty}
-                      onChange={setFilterDifficulty}
-                      style={{ width: 120 }}
-                      placeholder="难度"
-                    >
-                      <Option value="all">全部难度</Option>
-                      <Option value="easy">简单</Option>
-                      <Option value="medium">中等</Option>
-                      <Option value="hard">困难</Option>
-                    </Select>
-                    <Select
-                      value={filterCategory}
-                      onChange={setFilterCategory}
-                      style={{ width: 120 }}
-                      placeholder="分类"
-                    >
-                      <Option value="all">全部分类</Option>
-                      {categories.map(cat => (
-                        <Option key={cat} value={cat}>{cat}</Option>
-                      ))}
-                    </Select>
-                    <Button
-                      type="default"
-                      icon={isAllSelected ? <CheckSquare size={14} /> : <Square size={14} />}
-                      onClick={handleSelectAll}
-                      disabled={filteredProblems.length === 0}
-                      className={styles.selectAllButton}
-                    >
-                      {isAllSelected ? '取消全选' : '全选当前'}
-                    </Button>
-                  </div>
-                </div>
-
-                {/* 题目列表 */}
-                <div className={styles.problemList}>
-                  {problemsLoading ? (
-                    <div className={styles.problemsLoading}>
-                      <Spin />
-                    </div>
-                  ) : (
-                    <div className={styles.problems}>
-                      {filteredProblems.map(problem => (
-                        <div key={problem.id} className={styles.problemItem}>
-                          <Checkbox 
-                            checked={selectedProblems.includes(problem.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedProblems(prev => [...prev, problem.id])
-                              } else {
-                                setSelectedProblems(prev => prev.filter(id => id !== problem.id))
-                              }
-                            }}
-                          >
-                            <span className={`${styles.difficultyBadge} ${styles[problem.difficulty]}`}>
-                              {problem.difficulty}
-                            </span>
-                            <span className={styles.problemNumber}>#{problem.number}</span>
-                            <span className={styles.problemTitle}>
-                              {problem.titleCn || problem.title}
-                            </span>
-                            <span className={styles.problemCategory}>{problem.category}</span>
-                          </Checkbox>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className={styles.selectionCount}>
-                    已选择 {selectedProblems.length} 道题目 {filteredProblems.length > 0 && `(当前显示 ${filteredProblems.length} 道)`}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 计划时长 */}
-          <div className={styles.formGroup}>
-            <label className={styles.label}>
-              <Calendar className={styles.labelIcon} />
-              计划时长
-            </label>
-            <div className={styles.sliderContainer}>
-              <Slider
-                min={7}
-                max={90}
-                value={duration}
-                onChange={setDuration}
-                marks={{
-                  7: '1周',
-                  30: '1个月',
-                  60: '2个月',
-                  90: '3个月'
-                }}
-              />
-              <span className={styles.sliderValue}>{duration} 天</span>
-            </div>
-          </div>
-
-          {/* 学习强度 */}
-          <div className={styles.formGroup}>
-            <label className={styles.label}>
-              <Clock className={styles.labelIcon} />
-              学习强度
-            </label>
-            <Select
-              value={intensity}
-              onChange={setIntensity}
-              className={styles.select}
-            >
-              <Option value="easy">轻松 (每天1-2题)</Option>
-              <Option value="medium">适中 (每天2-3题)</Option>
-              <Option value="hard">高强度 (每天3-5题)</Option>
-            </Select>
-          </div>
-
-          {/* 开始日期 */}
-          <div className={styles.formGroup}>
-            <label className={styles.label}>
-              <Calendar className={styles.labelIcon} />
-              开始日期
-            </label>
-            <DatePicker
-              value={startDate}
-              onChange={setStartDate}
-              placeholder="选择开始日期"
-              className={styles.datePicker}
-              format="YYYY-MM-DD"
-            />
-          </div>
-
-          {/* 提交按钮 */}
-          <div className={styles.submitSection}>
-            <Button onClick={() => router.push('/')} className={styles.cancelButton}>
-              取消
-            </Button>
-            <Button
-              type="primary"
-              onClick={handleSubmit}
-              loading={loading}
-              className={styles.submitButton}
-            >
-              创建计划
-            </Button>
-          </div>
+        {/* 提交按钮 */}
+        <div className={styles.submitSection}>
+          <Button
+            type="primary"
+            size="large"
+            loading={loading}
+            onClick={handleSubmit}
+            className={styles.submitButton}
+            disabled={!planName.trim() || selectedProblems.length === 0}
+          >
+            创建学习计划
+          </Button>
         </div>
       </div>
     </div>

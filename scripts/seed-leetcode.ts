@@ -996,7 +996,39 @@ const additionalLeetcodeProblems = [
 ];
 
 // 合并所有题目
-const allLeetcodeProblems = [...leetcodeProblems, ...additionalLeetcodeProblems];
+const allLeetcodeProblems = [...leetcodeProblems, ...additionalLeetcodeProblems, 
+  // 缺失的速成题目补充
+  {
+    slug: "trapping-rain-water",
+    number: 42,
+    title: "Trapping Rain Water",
+    titleCn: "接雨水",
+    difficulty: "hard",
+    url: "https://leetcode.com/problems/trapping-rain-water/",
+    tags: ["Array", "Two Pointers", "Stack"],
+    category: "数组"
+  },
+  {
+    slug: "binary-tree-maximum-path-sum",
+    number: 124,
+    title: "Binary Tree Maximum Path Sum",
+    titleCn: "二叉树中的最大路径和",
+    difficulty: "hard",
+    url: "https://leetcode.com/problems/binary-tree-maximum-path-sum/",
+    tags: ["Tree", "DFS", "Dynamic Programming"],
+    category: "树"
+  },
+  {
+    slug: "sliding-window-maximum",
+    number: 239,
+    title: "Sliding Window Maximum",
+    titleCn: "滑动窗口最大值",
+    difficulty: "hard",
+    url: "https://leetcode.com/problems/sliding-window-maximum/",
+    tags: ["Array", "Queue", "Sliding Window"],
+    category: "滑动窗口"
+  }
+]
 
 async function main() {
   console.log('开始导入LeetCode题目数据...')

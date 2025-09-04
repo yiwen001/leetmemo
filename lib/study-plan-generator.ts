@@ -1,8 +1,11 @@
 // lib/study-plan-generator.ts
+import { PrismaClient } from '@prisma/client'
+
 export interface Problem {
     id?: string
     name: string
     url: string
+    slug: string
     difficulty?: 'easy' | 'medium' | 'hard'
   }
   
@@ -17,14 +20,15 @@ export interface Problem {
   }
   
   export interface StudyPlanConfig {
-  problems: Problem[]        // 用户选定的题目列表
-  learnedProblems?: string[] // 已学过的题目ID（重新开始时用）
+  problemSlugs: string[]     // 用户选定的题目slug列表
+  learnedProblems?: string[] // 已学过的题目slug（重新开始时用）
   duration: number           // 计划天数
   startDate: string         // 开始日期
   intensity: 'easy' | 'medium' | 'hard'
 }
   
   export class StudyPlanGenerator {
+    private prisma: PrismaClient
     private config = {
       REVIEW_INTERVALS: [1, 3, 7, 15, 30],
       LIMITS: {
@@ -33,16 +37,38 @@ export interface Problem {
         hard: { MAX_DAILY_NEW: 4, MAX_DAILY_TOTAL: 12 }
       }
     }
+
+    constructor() {
+      this.prisma = new PrismaClient()
+    }
   
-   generatePlan(config: StudyPlanConfig) {
-  const { problems, learnedProblems = [], duration, startDate, intensity } = config
+   async generatePlan(config: StudyPlanConfig) {
+  const { problemSlugs, learnedProblems = [], duration, startDate, intensity } = config
+  
+  // 从数据库获取题目信息
+  const problems = await this.prisma.leetCodeProblem.findMany({
+    where: {
+      slug: {
+        in: problemSlugs
+      }
+    }
+  })
+  
+  // 转换为 Problem 格式
+  const problemList: Problem[] = problems.map(p => ({
+    id: p.id.toString(),
+    name: p.title,
+    url: `https://leetcode.cn/problems/${p.slug}/`,
+    slug: p.slug,
+    difficulty: p.difficulty as 'easy' | 'medium' | 'hard'
+  }))
   
   // 过滤掉已学过的题目
-  const remainingProblems = problems.filter(p => 
-    !learnedProblems.includes(p.id || '')
+  const remainingProblems = problemList.filter(p => 
+    !learnedProblems.includes(p.slug)
   )
   
-  console.log(`总题目: ${problems.length}, 已学: ${learnedProblems.length}, 剩余: ${remainingProblems.length}`)
+  console.log(`总题目: ${problemList.length}, 已学: ${learnedProblems.length}, 剩余: ${remainingProblems.length}`)
   
   if (remainingProblems.length === 0) {
     throw new Error('没有剩余题目可以学习')
@@ -53,7 +79,7 @@ export interface Problem {
   
   return {
     projectInfo: {
-      totalProblems: problems.length,
+      totalProblems: problemList.length,
       remainingProblems: remainingProblems.length,
       learnedProblems: learnedProblems.length,
       duration,
