@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { ArrowLeft, Calendar, Target, Clock, BookOpen, Plus, Filter } from 'lucide-react'
+import { ArrowLeft, Calendar, Target, Clock, BookOpen, Plus, Filter, Eye, Search, CheckSquare, Square } from 'lucide-react'
 import { message, DatePicker, Select, Slider, Radio, Checkbox, Spin, Input, Button } from 'antd'
 import dayjs from 'dayjs'
 import styles from './page.module.sass'
+import { DEFAULT_PROBLEMS } from '@/lib/default-study-plan'
 
 const { Option } = Select
 
@@ -38,6 +39,7 @@ export default function CreatePlanPage() {
   const [problemsLoading, setProblemsLoading] = useState(false)
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all')
   const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState<string>('')
   
   // 手动添加题目相关状态
   const [showAddForm, setShowAddForm] = useState(false)
@@ -53,6 +55,7 @@ export default function CreatePlanPage() {
   
   // 预览相关状态
   const [showPreview, setShowPreview] = useState(false)
+  const [showDefaultPreview, setShowDefaultPreview] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -202,11 +205,34 @@ export default function CreatePlanPage() {
   const filteredProblems = problems.filter(problem => {
     const difficultyMatch = filterDifficulty === 'all' || problem.difficulty === filterDifficulty
     const categoryMatch = filterCategory === 'all' || problem.category === filterCategory
-    return difficultyMatch && categoryMatch
+    const searchMatch = searchQuery === '' || 
+      problem.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      problem.titleCn.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      problem.number.toString().includes(searchQuery)
+    return difficultyMatch && categoryMatch && searchMatch
   })
 
   // 获取分类列表
   const categories = [...new Set(problems.map(p => p.category))]
+
+  // 全选/取消全选功能
+  const handleSelectAll = () => {
+    const filteredIds = filteredProblems.map(p => p.id)
+    const allSelected = filteredIds.every(id => selectedProblems.includes(id))
+    
+    if (allSelected) {
+      // 取消选择当前筛选结果中的所有题目
+      setSelectedProblems(prev => prev.filter(id => !filteredIds.includes(id)))
+    } else {
+      // 选择当前筛选结果中的所有题目
+      const newSelections = filteredIds.filter(id => !selectedProblems.includes(id))
+      setSelectedProblems(prev => [...prev, ...newSelections])
+    }
+  }
+
+  // 检查当前筛选结果是否全部选中
+  const isAllSelected = filteredProblems.length > 0 && 
+    filteredProblems.every(problem => selectedProblems.includes(problem.id))
 
   const handleSubmit = async () => {
     if (!planName.trim()) {
@@ -296,9 +322,52 @@ export default function CreatePlanPage() {
               onChange={(e) => setPlanMode(e.target.value)}
               className={styles.radioGroup}
             >
-              <Radio value="default">使用默认计划 (精选25道经典题目)</Radio>
+              <div className={styles.radioOption}>
+                <Radio value="default">使用默认计划 (精选{DEFAULT_PROBLEMS.length}道经典题目)</Radio>
+                <Button 
+                  type="link" 
+                  size="small"
+                  icon={<Eye size={14} />}
+                  onClick={() => setShowDefaultPreview(!showDefaultPreview)}
+                >
+                  {showDefaultPreview ? '隐藏预览' : '预览题目'}
+                </Button>
+              </div>
               <Radio value="custom">自定义选题 (从题库中选择)</Radio>
             </Radio.Group>
+            
+            {/* 默认计划预览 */}
+            {planMode === 'default' && showDefaultPreview && (
+              <div className={styles.defaultPreview}>
+                <h4>默认学习计划包含以下题目：</h4>
+                <div className={styles.defaultProblemList}>
+                  {DEFAULT_PROBLEMS.map((problem, index) => (
+                    <div key={index} className={styles.defaultProblemItem}>
+                      <span className={styles.defaultProblemNumber}>{index + 1}.</span>
+                      <span className={styles.defaultProblemTitle}>{problem.name}</span>
+                      <a 
+                        href={problem.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className={styles.defaultProblemLink}
+                      >
+                        查看题目
+                      </a>
+                    </div>
+                  ))}
+                </div>
+                <div className={styles.defaultPlanInfo}>
+                  <p>这些题目涵盖了算法面试的核心知识点，包括：</p>
+                  <ul>
+                    <li>字符串处理与数组操作</li>
+                    <li>哈希表与双指针技巧</li>
+                    <li>栈与队列的应用</li>
+                    <li>链表基础操作</li>
+                    <li>二叉树遍历与递归</li>
+                  </ul>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 计划名称 */}
@@ -421,30 +490,51 @@ export default function CreatePlanPage() {
                   </div>
                 )}
 
-                {/* 筛选器 */}
-                <div className={styles.filters}>
-                  <Select
-                    value={filterDifficulty}
-                    onChange={setFilterDifficulty}
-                    style={{ width: 120 }}
-                    placeholder="难度"
-                  >
-                    <Option value="all">全部难度</Option>
-                    <Option value="easy">简单</Option>
-                    <Option value="medium">中等</Option>
-                    <Option value="hard">困难</Option>
-                  </Select>
-                  <Select
-                    value={filterCategory}
-                    onChange={setFilterCategory}
-                    style={{ width: 120 }}
-                    placeholder="分类"
-                  >
-                    <Option value="all">全部分类</Option>
-                    {categories.map(cat => (
-                      <Option key={cat} value={cat}>{cat}</Option>
-                    ))}
-                  </Select>
+                {/* 搜索和筛选器 */}
+                <div className={styles.searchAndFilters}>
+                  <div className={styles.searchBox}>
+                    <Search className={styles.searchIcon} size={16} />
+                    <Input
+                      placeholder="搜索题目名称或编号..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className={styles.searchInput}
+                      allowClear
+                    />
+                  </div>
+                  <div className={styles.filters}>
+                    <Select
+                      value={filterDifficulty}
+                      onChange={setFilterDifficulty}
+                      style={{ width: 120 }}
+                      placeholder="难度"
+                    >
+                      <Option value="all">全部难度</Option>
+                      <Option value="easy">简单</Option>
+                      <Option value="medium">中等</Option>
+                      <Option value="hard">困难</Option>
+                    </Select>
+                    <Select
+                      value={filterCategory}
+                      onChange={setFilterCategory}
+                      style={{ width: 120 }}
+                      placeholder="分类"
+                    >
+                      <Option value="all">全部分类</Option>
+                      {categories.map(cat => (
+                        <Option key={cat} value={cat}>{cat}</Option>
+                      ))}
+                    </Select>
+                    <Button
+                      type="default"
+                      icon={isAllSelected ? <CheckSquare size={14} /> : <Square size={14} />}
+                      onClick={handleSelectAll}
+                      disabled={filteredProblems.length === 0}
+                      className={styles.selectAllButton}
+                    >
+                      {isAllSelected ? '取消全选' : '全选当前'}
+                    </Button>
+                  </div>
                 </div>
 
                 {/* 题目列表 */}
@@ -481,7 +571,7 @@ export default function CreatePlanPage() {
                     </div>
                   )}
                   <div className={styles.selectionCount}>
-                    已选择 {selectedProblems.length} 道题目
+                    已选择 {selectedProblems.length} 道题目 {filteredProblems.length > 0 && `(当前显示 ${filteredProblems.length} 道)`}
                   </div>
                 </div>
               </div>
