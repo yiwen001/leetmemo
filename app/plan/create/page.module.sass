@@ -1,0 +1,288 @@
+.container
+  min-height: 100vh
+  background-color: #f8fafc
+  padding: 20px
+
+.header
+  display: flex
+  align-items: center
+  justify-content: space-between
+  margin-bottom: 32px
+  padding: 0 4px
+
+  h1
+    margin: 0
+    font-size: 28px
+    font-weight: 600
+    color: #1f2937
+
+.backButton
+  display: flex
+  align-items: center
+  gap: 8px
+  padding: 8px 16px
+  background: white
+  border: 1px solid #e5e7eb
+  border-radius: 8px
+  color: #6b7280
+  cursor: pointer
+  transition: all 0.2s ease
+
+  &:hover
+    background: #f9fafb
+    color: #374151
+
+.loading
+  display: flex
+  flex-direction: column
+  align-items: center
+  justify-content: center
+  min-height: 60vh
+  gap: 16px
+
+.spinner
+  width: 40px
+  height: 40px
+  border: 3px solid #f3f4f6
+  border-top: 3px solid #3b82f6
+  border-radius: 50%
+  animation: spin 1s linear infinite
+
+@keyframes spin
+  0%
+    transform: rotate(0deg)
+  100%
+    transform: rotate(360deg)
+
+.content
+  max-width: 800px
+  margin: 0 auto
+
+.formSection
+  background: white
+  padding: 32px
+  border-radius: 12px
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1)
+
+.formGroup
+  margin-bottom: 24px
+
+  &:last-child
+    margin-bottom: 0
+
+.label
+  display: flex
+  align-items: center
+  gap: 8px
+  margin-bottom: 8px
+  font-weight: 600
+  color: #374151
+  font-size: 16px
+
+.labelIcon
+  width: 18px
+  height: 18px
+
+.radioGroup
+  display: flex
+  flex-direction: column
+  gap: 8px
+
+  :global(.ant-radio-wrapper)
+    font-size: 14px
+
+.input, .select, .datePicker
+  width: 100%
+
+.sliderContainer
+  .sliderValue
+    display: block
+    margin-top: 8px
+    font-weight: 500
+    color: #374151
+
+.problemSelection
+  border: 1px solid #e5e7eb
+  border-radius: 8px
+  padding: 20px
+
+.actionButtons
+  display: flex
+  gap: 12px
+  margin-bottom: 16px
+
+.addForm
+  margin-bottom: 20px
+  padding: 20px
+  background: #f8fafc
+  border-radius: 8px
+  border: 1px solid #e5e7eb
+
+  h4
+    margin: 0 0 16px 0
+    color: #374151
+
+.addFormGrid
+  display: flex
+  flex-direction: column
+  gap: 12px
+
+.addFormRow
+  display: grid
+  grid-template-columns: 1fr 1fr
+  gap: 12px
+
+.addButton
+  align-self: flex-end
+
+.preview
+  margin-bottom: 20px
+  padding: 20px
+  background: #f0f9ff
+  border-radius: 8px
+  border: 1px solid #bae6fd
+
+  h4
+    margin: 0 0 16px 0
+    color: #0369a1
+
+.previewList
+  max-height: 300px
+  overflow-y: auto
+
+.previewItem
+  display: flex
+  align-items: center
+  justify-content: space-between
+  padding: 12px
+  background: white
+  border-radius: 6px
+  margin-bottom: 8px
+  border: 1px solid #e0f2fe
+
+.previewInfo
+  display: flex
+  align-items: center
+  gap: 12px
+
+.previewNumber
+  font-weight: 600
+  color: #374151
+
+.previewTitle
+  font-weight: 500
+  color: #1f2937
+
+.previewCategory
+  font-size: 12px
+  color: #6b7280
+
+.filters
+  display: flex
+  gap: 12px
+  margin-bottom: 16px
+
+.problemList
+  border: 1px solid #e5e7eb
+  border-radius: 6px
+  padding: 16px
+  max-height: 400px
+  overflow-y: auto
+
+.problemsLoading
+  display: flex
+  justify-content: center
+  padding: 40px
+
+.problems
+  display: flex
+  flex-direction: column
+  gap: 8px
+
+.problemItem
+  padding: 12px
+  border: 1px solid #f0f0f0
+  border-radius: 6px
+  transition: background 0.2s ease
+
+  &:hover
+    background: #f9fafb
+
+  :global(.ant-checkbox-wrapper)
+    width: 100%
+    display: flex
+    align-items: center
+    gap: 12px
+
+.problemNumber
+  color: #6b7280
+  font-size: 14px
+
+.problemTitle
+  font-weight: 500
+  color: #1f2937
+
+.problemCategory
+  font-size: 12px
+  color: #9ca3af
+
+.difficultyBadge
+  padding: 2px 8px
+  border-radius: 12px
+  font-size: 12px
+  font-weight: 500
+
+  &.easy
+    background: #dcfce7
+    color: #166534
+
+  &.medium
+    background: #fef3c7
+    color: #92400e
+
+  &.hard
+    background: #fee2e2
+    color: #dc2626
+
+.selectionCount
+  margin-top: 12px
+  text-align: center
+  color: #6b7280
+  font-size: 14px
+
+.submitSection
+  display: flex
+  justify-content: flex-end
+  gap: 12px
+  margin-top: 32px
+  padding-top: 24px
+  border-top: 1px solid #f0f0f0
+
+.cancelButton
+  padding: 8px 24px
+
+.submitButton
+  padding: 8px 24px
+
+@media (max-width: 768px)
+  .container
+    padding: 16px
+
+  .header
+    margin-bottom: 24px
+
+  .formSection
+    padding: 24px
+
+  .addFormRow
+    grid-template-columns: 1fr
+
+  .filters
+    flex-direction: column
+
+  .submitSection
+    flex-direction: column-reverse
+    gap: 8px
+
+    .cancelButton, .submitButton
+      width: 100%

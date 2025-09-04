@@ -72,39 +72,100 @@ export async function GET(
     const dayProgress = totalDays > 0 ? Math.round((completedTasks / totalDays) * 100) : 0
     const problemProgress = totalProblems > 0 ? Math.round((learnedProblems / totalProblems) * 100) : 0
 
+    // 计算预计完成时间
+    const remainingProblems = totalProblems - completedProblems
+    const averagePerDay = totalDays > 0 ? totalProblems / totalDays : 1
+    const remainingDays = Math.ceil(remainingProblems / averagePerDay)
+    const estimatedCompletion = new Date(Date.now() + remainingDays * 24 * 60 * 60 * 1000).toLocaleDateString()
+
+    // 构建题目列表
+    const problems = problemDetails.map(problem => {
+      const studyRecord = studyRecords.find(r => r.problemId === problem.id)
+      return {
+        id: problem.id,
+        number: problem.number,
+        title: problem.titleCn || problem.title,
+        difficulty: problem.difficulty,
+        category: problem.category,
+        url: problem.url,
+        completed: studyRecord?.completed || false,
+        reviewCount: studyRecord?.reviewCount || 0,
+        lastReviewDate: studyRecord?.lastReviewDate?.toISOString() || null,
+        notes: studyRecord?.notes || ''
+      }
+    })
+
+    // 构建每日任务数据
+    const dailySchedule = plan.dailyTasks.map(task => {
+      const taskDate = new Date(plan.startDate)
+      taskDate.setDate(taskDate.getDate() + task.day - 1)
+      
+      const newProblems = task.taskItems
+        .filter(item => item.taskType === 'new')
+        .map(item => {
+          const problem = problemDetails.find(p => p.id === item.problemId)
+          const studyRecord = studyRecords.find(r => r.problemId === item.problemId)
+          return problem ? {
+            id: problem.id,
+            number: problem.number,
+            title: problem.titleCn || problem.title,
+            difficulty: problem.difficulty,
+            url: problem.url,
+            completed: item.completed,
+            notes: studyRecord?.notes || ''
+          } : null
+        })
+        .filter(Boolean)
+
+      const reviewProblems = task.taskItems
+        .filter(item => item.taskType === 'review')
+        .map(item => {
+          const problem = problemDetails.find(p => p.id === item.problemId)
+          const studyRecord = studyRecords.find(r => r.problemId === item.problemId)
+          return problem ? {
+            id: problem.id,
+            number: problem.number,
+            title: problem.titleCn || problem.title,
+            difficulty: problem.difficulty,
+            url: problem.url,
+            completed: item.completed,
+            reviewCount: studyRecord?.reviewCount || 0,
+            notes: studyRecord?.notes || ''
+          } : null
+        })
+        .filter(Boolean)
+
+      return {
+        day: task.day,
+        date: taskDate.toISOString().split('T')[0],
+        status: task.status,
+        newProblems,
+        reviewProblems,
+        totalProblems: newProblems.length + reviewProblems.length,
+        completedProblems: task.taskItems.filter(item => item.completed).length
+      }
+    })
+
     return NextResponse.json({
       success: true,
       data: {
         plan: {
           id: plan.id,
+          name: plan.name || '学习计划',
           startDate: plan.startDate.toISOString().split('T')[0],
           duration: plan.duration,
           intensity: plan.intensity,
           status: plan.status,
-          createdAt: plan.createdAt.toISOString(),
-          updatedAt: plan.updatedAt.toISOString()
+          createdAt: plan.createdAt.toISOString()
         },
-        problems: problemDetails.map(problem => ({
-          id: problem.id,
-          number: problem.number,
-          title: problem.titleCn || problem.title,
-          difficulty: problem.difficulty,
-          category: problem.category,
-          url: problem.url,
-          learned: plan.learnedProblems.includes(problem.id),
-          completed: studyRecords.find(r => r.problemId === problem.id)?.completed || false,
-          notes: studyRecords.find(r => r.problemId === problem.id)?.notes || ''
-        })),
-        statistics: {
-          totalDays,
-          completedTasks,
-          dayProgress,
-          totalProblems,
-          learnedProblems,
-          completedProblems,
-          problemProgress,
-          averageProblemsPerDay: totalDays > 0 ? Math.round(totalProblems / totalDays * 10) / 10 : 0
-        }
+        totalProblems,
+        completedProblems,
+        remainingProblems: totalProblems - completedProblems,
+        progress: totalProblems > 0 ? (completedProblems / totalProblems) * 100 : 0,
+        dailyTarget: Math.ceil(totalProblems / plan.duration),
+        estimatedCompletion,
+        problems,
+        dailySchedule
       }
     })
 

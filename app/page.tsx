@@ -14,9 +14,6 @@ import { useRouter } from 'next/navigation'
 import 'antd/dist/reset.css'
 
 // 导入新组件
-import CreatePlanModalNew from './components/CreatePlanModal/CreatePlanModalNew'
-import PlanDetailsModal from './components/PlanDetailsModal/PlanDetailsModal'
-import ProgressStats from './components/ProgressStats/ProgressStats'
 import StudyCalendarNew from './components/StudyCalendar/StudyCalendarNew'
 import PlanRecoveryModal from './components/PlanRecoveryModal/PlanRecoveryModal'
 
@@ -38,11 +35,6 @@ interface Problem {
 export default function HomePage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [isCreatePlanModalOpen, setIsCreatePlanModalOpen] = useState(false)
-  const [isPlanDetailsModalOpen, setIsPlanDetailsModalOpen] = useState(false)
-  const [planDetailsData, setPlanDetailsData] = useState(null)
-  const [planDetailsLoading, setPlanDetailsLoading] = useState(false)
-  const [createPlanLoading, setCreatePlanLoading] = useState(false)
   const [problems, setProblems] = useState<Problem[]>([])
   const [expandedNotes, setExpandedNotes] = useState<string | null>(null)
   const [editingNotes, setEditingNotes] = useState<string | null>(null)
@@ -143,35 +135,8 @@ export default function HomePage() {
   }
 
   // 查看计划详情
-  const handleViewPlanDetails = async () => {
-    setIsPlanDetailsModalOpen(true)
-    
-    if (!studyPlan?.id) {
-      // 没有计划时显示空状态的详情页
-      setPlanDetailsData(null)
-      setPlanDetailsLoading(false)
-      return
-    }
-
-    setPlanDetailsLoading(true)
-
-    try {
-      const response = await fetch(`/api/study-plans/${studyPlan.id}/details`)
-      const result = await response.json()
-
-      if (result.success) {
-        setPlanDetailsData(result.data)
-      } else {
-        message.error(result.error || '获取计划详情失败')
-        setIsPlanDetailsModalOpen(false)
-      }
-    } catch (error) {
-      console.error('获取计划详情失败:', error)
-      message.error('获取计划详情失败，请重试')
-      setIsPlanDetailsModalOpen(false)
-    } finally {
-      setPlanDetailsLoading(false)
-    }
+  const handleViewPlanDetails = () => {
+    router.push('/plan/details')
   }
 
   // 删除当前计划
@@ -332,33 +297,8 @@ export default function HomePage() {
   ]
 
   // 创建新计划
-  const handleCreatePlan = async (planData: any) => {
-    setCreatePlanLoading(true)
-    try {
-      const response = await fetch('/api/study-plans/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(planData)
-      })
-
-      const result = await response.json()
-
-      if (result.success) {
-        message.success('学习计划创建成功！')
-        setIsCreatePlanModalOpen(false)
-        // 重新检查计划状态
-        await checkExistingPlan()
-      } else {
-        message.error(result.error || '创建计划失败')
-      }
-    } catch (error) {
-      console.error('创建计划失败:', error)
-      message.error('创建计划失败，请重试')
-    } finally {
-      setCreatePlanLoading(false)
-    }
+  const handleCreatePlan = () => {
+    router.push('/plan/create')
   }
 
   // 切换笔记预览
@@ -498,7 +438,7 @@ export default function HomePage() {
 
   // 计算统计数据
   const completedProblems = problems.filter(p => p.completed).length
-  const totalProblems = studyPlan?.projectInfo?.totalProblems || 0
+  const totalProblems = studyPlan?.planProblems?.length || 0
   const todayTarget = problems.length
   const uncompletedCount = problems.filter(p => !p.completed).length
 
@@ -511,7 +451,7 @@ export default function HomePage() {
           <div className={styles.navRight}>
             <button 
               className={styles.addButton}
-              onClick={() => handleViewPlanDetails()}
+              onClick={handleViewPlanDetails}
             >
               <Target size={18} />
               计划详情
@@ -655,7 +595,7 @@ export default function HomePage() {
                 <p>创建一个学习计划开始你的刷题之旅吧！</p>
                 <button 
                   className={styles.addFirstButton}
-                  onClick={() => setIsCreatePlanModalOpen(true)}
+                  onClick={handleCreatePlan}
                 >
                   <Plus size={16} />
                   创建第一个计划
@@ -835,26 +775,6 @@ export default function HomePage() {
         </div>
       </main>
 
-      {/* 创建计划Modal */}
-      <CreatePlanModalNew
-        open={isCreatePlanModalOpen}
-        onCancel={() => setIsCreatePlanModalOpen(false)}
-        onSubmit={handleCreatePlan}
-        loading={createPlanLoading}
-      />
-
-      {/* 计划详情Modal */}
-      <PlanDetailsModal
-        visible={isPlanDetailsModalOpen}
-        onClose={() => {
-          setIsPlanDetailsModalOpen(false)
-          setPlanDetailsData(null)
-        }}
-        data={planDetailsData}
-        loading={planDetailsLoading}
-        onDeletePlan={handleDeletePlan}
-        onCreatePlan={() => setIsCreatePlanModalOpen(true)}
-      />
 
       {/* 计划恢复Modal */}
       <PlanRecoveryModal

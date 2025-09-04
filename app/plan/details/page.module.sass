@@ -1,0 +1,390 @@
+.container
+  min-height: 100vh
+  background-color: #f8fafc
+  padding: 20px
+
+.header
+  display: flex
+  align-items: center
+  justify-content: space-between
+  margin-bottom: 24px
+  padding: 0 4px
+
+  h1
+    margin: 0
+    font-size: 28px
+    font-weight: 600
+    color: #1f2937
+
+.backButton
+  display: flex
+  align-items: center
+  gap: 8px
+  padding: 8px 16px
+  background: white
+  border: 1px solid #e5e7eb
+  border-radius: 8px
+  color: #6b7280
+  cursor: pointer
+  transition: all 0.2s ease
+
+  &:hover
+    background: #f9fafb
+    color: #374151
+
+.deleteButton
+  display: flex
+  align-items: center
+  gap: 8px
+  padding: 8px 16px
+  background: #fee2e2
+  border: 1px solid #fecaca
+  border-radius: 8px
+  color: #dc2626
+  cursor: pointer
+  transition: all 0.2s ease
+
+  &:hover
+    background: #fecaca
+    border-color: #f87171
+
+.loading
+  display: flex
+  flex-direction: column
+  align-items: center
+  justify-content: center
+  min-height: 60vh
+  gap: 16px
+
+.spinner
+  width: 40px
+  height: 40px
+  border: 3px solid #f3f4f6
+  border-top: 3px solid #3b82f6
+  border-radius: 50%
+  animation: spin 1s linear infinite
+
+@keyframes spin
+  0%
+    transform: rotate(0deg)
+  100%
+    transform: rotate(360deg)
+
+.emptyState
+  display: flex
+  flex-direction: column
+  align-items: center
+  justify-content: center
+  min-height: 60vh
+  text-align: center
+  gap: 16px
+
+  h2
+    margin: 0
+    color: #6b7280
+    font-size: 24px
+
+  p
+    margin: 0
+    color: #9ca3af
+    font-size: 16px
+
+.createButton
+  display: flex
+  align-items: center
+  gap: 8px
+  padding: 12px 24px
+  background: #3b82f6
+  color: white
+  border: none
+  border-radius: 8px
+  font-size: 16px
+  cursor: pointer
+  transition: background 0.2s ease
+
+  &:hover
+    background: #2563eb
+
+.content
+  display: flex
+  flex-direction: column
+  gap: 24px
+  max-width: 1200px
+  margin: 0 auto
+
+.planInfo
+  background: white
+  padding: 24px
+  border-radius: 12px
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1)
+
+.planHeader
+  display: flex
+  align-items: center
+  justify-content: space-between
+  margin-bottom: 16px
+
+  h2
+    margin: 0
+    font-size: 24px
+    font-weight: 600
+    color: #1f2937
+
+.statusBadge
+  padding: 4px 12px
+  border-radius: 20px
+  font-size: 12px
+  font-weight: 500
+
+  &.active
+    background: #dcfce7
+    color: #166534
+
+  &.completed
+    background: #dbeafe
+    color: #1e40af
+
+  &.paused
+    background: #fef3c7
+    color: #92400e
+
+.planMeta
+  display: flex
+  flex-direction: column
+  gap: 8px
+
+.metaItem
+  display: flex
+  align-items: center
+  gap: 8px
+  color: #6b7280
+  font-size: 14px
+
+.progressSection
+  background: white
+  padding: 24px
+  border-radius: 12px
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1)
+
+  h3
+    margin: 0 0 20px 0
+    font-size: 20px
+    font-weight: 600
+    color: #1f2937
+
+.progressStats
+  display: grid
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr))
+  gap: 16px
+  margin-bottom: 24px
+
+.statCard
+  text-align: center
+  padding: 16px
+  background: #f8fafc
+  border-radius: 8px
+
+.statValue
+  font-size: 28px
+  font-weight: 700
+  color: #1f2937
+  margin-bottom: 4px
+
+.statLabel
+  font-size: 14px
+  color: #6b7280
+
+.progressBar
+  margin-top: 16px
+
+.progressTrack
+  width: 100%
+  height: 12px
+  background: #f3f4f6
+  border-radius: 6px
+  overflow: hidden
+
+.progressFill
+  height: 100%
+  background: linear-gradient(90deg, #10b981, #059669)
+  border-radius: 6px
+  transition: width 0.3s ease
+
+.progressText
+  margin-top: 8px
+  text-align: center
+  font-size: 14px
+  color: #6b7280
+
+.problemsSection
+  background: white
+  padding: 24px
+  border-radius: 12px
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1)
+
+  h3
+    margin: 0 0 20px 0
+    font-size: 20px
+    font-weight: 600
+    color: #1f2937
+
+.problemsList
+  display: flex
+  flex-direction: column
+  gap: 12px
+
+.problemItem
+  padding: 16px
+  background: #f8fafc
+  border: 1px solid #e5e7eb
+  border-radius: 8px
+  transition: all 0.2s ease
+
+  &:hover
+    background: #f1f5f9
+    border-color: #cbd5e1
+
+  &.completed
+    background: #f0fdf4
+    border-color: #bbf7d0
+
+    .problemTitle
+      color: #059669
+
+.problemHeader
+  display: flex
+  justify-content: space-between
+  align-items: center
+  margin-bottom: 8px
+
+.problemInfo
+  display: flex
+  align-items: center
+  gap: 12px
+  flex: 1
+
+.problemNumber
+  font-weight: 600
+  color: #6b7280
+  font-size: 14px
+  min-width: 60px
+
+.problemTitle
+  font-weight: 500
+  color: #1f2937
+  text-decoration: none
+  font-size: 16px
+  transition: color 0.2s ease
+
+  &:hover
+    color: #3b82f6
+    text-decoration: underline
+
+.difficulty
+  padding: 2px 8px
+  border-radius: 12px
+  font-size: 12px
+  font-weight: 500
+
+  &.easy
+    background: #dcfce7
+    color: #166534
+
+  &.medium
+    background: #fef3c7
+    color: #92400e
+
+  &.hard
+    background: #fee2e2
+    color: #dc2626
+
+.problemStatus
+  display: flex
+  align-items: center
+
+.completedBadge
+  padding: 4px 12px
+  background: #dcfce7
+  color: #166534
+  border-radius: 16px
+  font-size: 12px
+  font-weight: 500
+
+.pendingBadge
+  padding: 4px 12px
+  background: #f3f4f6
+  color: #6b7280
+  border-radius: 16px
+  font-size: 12px
+  font-weight: 500
+
+.problemMeta
+  display: flex
+  gap: 16px
+  font-size: 12px
+  color: #6b7280
+  margin-top: 8px
+  padding-top: 8px
+  border-top: 1px solid #e5e7eb
+
+// Table styling for completed rows
+.completedRow
+  background-color: #f0fdf4 !important
+  
+  &:hover
+    background-color: #dcfce7 !important
+
+// Table styling for overdue rows
+.overdueRow
+  background-color: #fef2f2 !important
+  
+  &:hover
+    background-color: #fee2e2 !important
+
+.suggestionsSection
+  background: white
+  padding: 24px
+  border-radius: 12px
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1)
+
+  h3
+    margin: 0 0 20px 0
+    font-size: 20px
+    font-weight: 600
+    color: #1f2937
+
+.suggestions
+  display: flex
+  flex-direction: column
+  gap: 12px
+
+.suggestionItem
+  display: flex
+  align-items: center
+  gap: 12px
+  padding: 12px
+  background: #f0f9ff
+  border-radius: 8px
+  color: #0369a1
+  font-size: 14px
+
+@media (max-width: 768px)
+  .container
+    padding: 16px
+
+  .header
+    flex-direction: column
+    align-items: stretch
+    gap: 16px
+
+    h1
+      text-align: center
+
+  .progressStats
+    grid-template-columns: repeat(2, 1fr)
+
+  .planMeta
+    gap: 12px
+
+  .metaItem
+    font-size: 16px
