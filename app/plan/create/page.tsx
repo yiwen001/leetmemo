@@ -43,6 +43,18 @@ export default function CreatePlanPage() {
   
   // 预览相关状态
   const [showPreview, setShowPreview] = useState(false)
+  
+  // 手动添加题目相关状态
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [addingProblem, setAddingProblem] = useState(false)
+  const [newProblem, setNewProblem] = useState({
+    url: '',
+    title: '',
+    titleCn: '',
+    difficulty: 'medium',
+    category: 'Array',
+    number: ''
+  })
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -76,6 +88,118 @@ export default function CreatePlanPage() {
       message.error('获取题库失败')
     } finally {
       setProblemsLoading(false)
+    }
+  }
+
+  // 从URL解析题目标题
+  const parseTitle = (url: string) => {
+    try {
+      const urlObj = new URL(url)
+      const pathname = urlObj.pathname
+      const match = pathname.match(/\/problems\/([^\/]+)/)
+      if (match) {
+        const slug = match[1]
+        // 将slug转换为标题格式，如 "two-sum" -> "Two Sum"
+        return slug.split('-').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ')
+      }
+    } catch (e) {
+      // 无效URL
+    }
+    return ''
+  }
+
+  // 从URL解析题目slug
+  const parseSlug = (url: string) => {
+    try {
+      const urlObj = new URL(url)
+      const pathname = urlObj.pathname
+      const match = pathname.match(/\/problems\/([^\/]+)/)
+      if (match) {
+        return match[1] // 返回slug，如 "two-sum" 或 "1-two-sum"
+      }
+    } catch (e) {
+      // 无效URL
+    }
+    return ''
+  }
+
+  // 从URL解析题目编号
+  const parseNumber = (url: string) => {
+    try {
+      const slug = parseSlug(url)
+      if (slug) {
+        // 尝试从slug中提取数字，如果没有则返回null
+        const numberMatch = slug.match(/^(\d+)/)
+        return numberMatch ? parseInt(numberMatch[1]) : null
+      }
+    } catch (e) {
+      // 无效URL
+    }
+    return null
+  }
+
+  // 处理URL变化
+  const handleUrlChange = (url: string) => {
+    const parsedNumber = url ? parseNumber(url) : null
+    setNewProblem(prev => ({
+      ...prev,
+      url,
+      title: url ? parseTitle(url) : prev.title,
+      number: parsedNumber ? parsedNumber.toString() : prev.number
+    }))
+  }
+
+  // 手动添加题目
+  const handleAddProblem = async () => {
+    if (!newProblem.url) {
+      message.error('请填写题目链接')
+      return
+    }
+
+    setAddingProblem(true)
+    try {
+      const response = await fetch('/api/leetcode-problems', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          slug: parseSlug(newProblem.url),
+          url: newProblem.url,
+          title: newProblem.title || parseTitle(newProblem.url),
+          titleCn: newProblem.titleCn || newProblem.title || parseTitle(newProblem.url),
+          difficulty: newProblem.difficulty,
+          category: newProblem.category,
+          number: newProblem.number ? parseInt(newProblem.number) : null,
+          tags: [newProblem.category]
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        message.success('题目添加成功')
+        // 重新获取题库数据
+        await fetchProblems()
+        // 重置表单
+        setNewProblem({
+          url: '',
+          title: '',
+          titleCn: '',
+          difficulty: 'medium',
+          category: 'Array',
+          number: ''
+        })
+        setShowAddForm(false)
+      } else {
+        message.error(result.error || '添加题目失败')
+      }
+    } catch (error) {
+      console.error('添加题目失败:', error)
+      message.error('添加题目失败')
+    } finally {
+      setAddingProblem(false)
     }
   }
 
@@ -140,9 +264,9 @@ export default function CreatePlanPage() {
   // 过滤题目
   const filteredProblems = problems.filter(problem => {
     const matchesSearch = !searchQuery || 
-      problem.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      problem.titleCn.includes(searchQuery) ||
-      problem.number.toString().includes(searchQuery)
+    problem.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    problem.titleCn.includes(searchQuery) ||
+    (problem.number && problem.number.toString().includes(searchQuery))
     
     const matchesDifficulty = filterDifficulty === 'all' || problem.difficulty === filterDifficulty
     const matchesCategory = filterCategory === 'all' || problem.category === filterCategory
@@ -244,14 +368,23 @@ export default function CreatePlanPage() {
           <div className={styles.section}>
             <div className={styles.sectionHeader}>
               <h2 className={styles.sectionTitle}>选择题目</h2>
-              <Button 
-                type="primary" 
-                icon={<Zap />}
-                onClick={selectSpeedRunProblems}
-                className={styles.speedRunButton}
-              >
-                30题速成版
-              </Button>
+              <div className={styles.headerButtons}>
+                <Button 
+                  type="primary" 
+                  icon={<Zap />}
+                  onClick={selectSpeedRunProblems}
+                  className={styles.speedRunButton}
+                >
+                  30题速成版
+                </Button>
+                <Button 
+                  type="dashed" 
+                  onClick={() => setShowAddForm(!showAddForm)}
+                  className={styles.addProblemButton}
+                >
+                  {showAddForm ? '取消添加' : '手动添加题目'}
+                </Button>
+              </div>
             </div>
 
             {/* 筛选器 */}
@@ -294,6 +427,74 @@ export default function CreatePlanPage() {
                 已选择 {selectedProblems.length} 道题目
               </div>
             </div>
+
+            {/* 手动添加题目表单 */}
+            {showAddForm && (
+              <div className={styles.addForm}>
+                <h4 className={styles.addFormTitle}>添加新题目</h4>
+                <div className={styles.addFormContent}>
+                  <div className={styles.addFormRow}>
+                    <Input
+                      placeholder="题目链接 (必填，如: https://leetcode.com/problems/two-sum/)"
+                      value={newProblem.url}
+                      onChange={(e) => handleUrlChange(e.target.value)}
+                      className={styles.addFormInput}
+                    />
+                  </div>
+                  <div className={styles.addFormRow}>
+                    <Input
+                      placeholder="题目编号 (自动解析)"
+                      value={newProblem.number}
+                      onChange={(e) => setNewProblem({...newProblem, number: e.target.value})}
+                      className={styles.addFormInputSmall}
+                    />
+                    <Select
+                      value={newProblem.difficulty}
+                      onChange={(value) => setNewProblem({...newProblem, difficulty: value})}
+                      className={styles.addFormSelect}
+                    >
+                      <Option value="easy">简单</Option>
+                      <Option value="medium">中等</Option>
+                      <Option value="hard">困难</Option>
+                    </Select>
+                  </div>
+                  <div className={styles.addFormRow}>
+                    <Input
+                      placeholder="题目标题 (自动解析，可修改)"
+                      value={newProblem.title}
+                      onChange={(e) => setNewProblem({...newProblem, title: e.target.value})}
+                      className={styles.addFormInput}
+                    />
+                  </div>
+                  <div className={styles.addFormRow}>
+                    <Input
+                      placeholder="题目标题 (中文，可选)"
+                      value={newProblem.titleCn}
+                      onChange={(e) => setNewProblem({...newProblem, titleCn: e.target.value})}
+                      className={styles.addFormInput}
+                    />
+                  </div>
+                  <div className={styles.addFormRow}>
+                    <Input
+                      placeholder="分类 (如: Array)"
+                      value={newProblem.category}
+                      onChange={(e) => setNewProblem({...newProblem, category: e.target.value})}
+                      className={styles.addFormInput}
+                    />
+                  </div>
+                  <div className={styles.addFormActions}>
+                    <Button 
+                      type="primary" 
+                      onClick={handleAddProblem}
+                      loading={addingProblem}
+                      className={styles.addFormSubmit}
+                    >
+                      添加题目
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* 题目列表 */}
             <div className={styles.problemList}>

@@ -537,19 +537,38 @@
   -webkit-text-fill-color: transparent
   background-clip: text
 
+.headerButtons
+  display: flex
+  gap: 12px
+  align-items: center
+
 .speedRunButton
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)
   border: none
-  border-radius: 12px
   color: white
   font-weight: 600
-  padding: 12px 24px
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4)
+  height: 40px
+  border-radius: 8px
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3)
   transition: all 0.3s ease
 
   &:hover
     transform: translateY(-2px)
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6)
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4)
+    background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)
+
+.addProblemButton
+  height: 40px
+  border-radius: 8px
+  border: 2px dashed #d1d5db
+  color: #6b7280
+  font-weight: 500
+  transition: all 0.3s ease
+
+  &:hover
+    border-color: #667eea
+    color: #667eea
+    background: rgba(102, 126, 234, 0.05)
 
 .filters
   display: flex
@@ -585,11 +604,85 @@
 .selectedCount
   color: #667eea
   font-weight: 600
-  white-space: nowrap
-  background: white
+  font-size: 14px
   padding: 8px 16px
+  background: rgba(102, 126, 234, 0.1)
   border-radius: 20px
-  border: 2px solid #667eea
+  white-space: nowrap
+
+// 手动添加题目表单样式
+.addForm
+  margin-bottom: 24px
+  padding: 24px
+  background: #ffffff
+  border: 2px solid #e5e7eb
+  border-radius: 12px
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05)
+
+.addFormTitle
+  font-size: 18px
+  font-weight: 600
+  color: #1f2937
+  margin: 0 0 16px 0
+
+.addFormContent
+  display: flex
+  flex-direction: column
+  gap: 16px
+
+.addFormRow
+  display: flex
+  gap: 12px
+  align-items: center
+
+  &:first-child
+    .addFormInput
+      flex: 1
+
+.addFormInput
+  flex: 1
+  height: 40px
+  border-radius: 8px
+  border: 1px solid #d1d5db
+  transition: all 0.3s ease
+
+  &:focus
+    border-color: #667eea
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1)
+
+.addFormInputSmall
+  flex: 0 0 120px
+  height: 40px
+  border-radius: 8px
+  border: 1px solid #d1d5db
+  transition: all 0.3s ease
+
+  &:focus
+    border-color: #667eea
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1)
+
+.addFormSelect
+  flex: 0 0 120px
+  height: 40px
+
+.addFormActions
+  display: flex
+  justify-content: flex-end
+  margin-top: 8px
+
+.addFormSubmit
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%)
+  border: none
+  color: white
+  font-weight: 600
+  height: 40px
+  padding: 0 24px
+  border-radius: 8px
+  transition: all 0.3s ease
+
+  &:hover
+    transform: translateY(-1px)
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3)
 
 .loadingContainer
   display: flex
