@@ -34,13 +34,21 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { name, mode, duration, intensity, startDate, selectedProblems } = body
+    const { name, duration, intensity, startDate, problemSlugs } = body
 
     // 验证必填字段
     if (!name || !duration || !intensity || !startDate) {
       return NextResponse.json({ 
         success: false, 
         error: '缺少必填字段' 
+      }, { status: 400 })
+    }
+
+    // 验证题目选择
+    if (!problemSlugs || !Array.isArray(problemSlugs) || problemSlugs.length === 0) {
+      return NextResponse.json({ 
+        success: false, 
+        error: '请至少选择一道题目' 
       }, { status: 400 })
     }
 
@@ -59,53 +67,32 @@ export async function POST(request: Request) {
       }, { status: 400 })
     }
 
-    let problemIds: string[] = []
+    // 根据slug获取题目ID
+    const problems = await prisma.leetCodeProblem.findMany({
+      where: {
+        slug: { in: problemSlugs }
+      },
+      select: { id: true, slug: true }
+    })
 
-    if (mode === 'default') {
-      // 使用默认的题目
-      const defaultProblems = await prisma.leetCodeProblem.findMany({
-        take: 19 // 默认取19道题目
-      })
-      problemIds = defaultProblems.map(p => p.id)
-    } else if (mode === 'custom' && selectedProblems?.length > 0) {
-      // 使用用户选择的题目
-      problemIds = selectedProblems
-    } else {
+    if (problems.length !== problemSlugs.length) {
+      const foundSlugs = new Set(problems.map(p => p.slug))
+      const missingSlugs = problemSlugs.filter(slug => !foundSlugs.has(slug))
+      console.error('Some problem slugs do not exist:', missingSlugs)
       return NextResponse.json({ 
         success: false, 
-        error: '请选择题目或使用默认模式' 
+        error: `找不到以下题目: ${missingSlugs.join(', ')}` 
       }, { status: 400 })
     }
 
-    if (problemIds.length === 0) {
-      return NextResponse.json({ 
-        success: false, 
-        error: '没有可用的题目' 
-      }, { status: 400 })
-    }
+    const problemIds = problems.map(p => p.id)
 
     // 处理开始日期，避免时区问题
     const parsedStartDate = new Date(startDate + 'T00:00:00.000Z')
     console.log('Original startDate:', startDate)
     console.log('Parsed startDate:', parsedStartDate)
     
-    // 验证所有题目ID是否存在
-    const existingProblems = await prisma.leetCodeProblem.findMany({
-      where: {
-        id: { in: problemIds }
-      },
-      select: { id: true }
-    })
-    
-    if (existingProblems.length !== problemIds.length) {
-      const existingIds = new Set(existingProblems.map(p => p.id))
-      const missingIds = problemIds.filter(id => !existingIds.has(id))
-      console.error('Some problem IDs do not exist:', missingIds)
-      return NextResponse.json({ 
-        success: false, 
-        error: `找不到以下题目ID: ${missingIds.join(', ')}` 
-      }, { status: 400 })
-    }
+    // 题目ID验证已在上面完成，这里不需要重复验证
 
     // 创建学习计划
     const plan = await prisma.studyPlan.create({
