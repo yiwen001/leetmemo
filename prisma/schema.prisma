@@ -22,32 +22,13 @@ model User {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // 关联
-  problems     Problem[]
   studyRecords StudyRecord[]
   studyPlans StudyPlan[]
+  createdProblems LeetCodeProblem[] @relation("CreatedProblems")
 
   @@map("users")
 }
 
-model Problem {
-  id         String   @id @default(cuid())
-  userId     String   @map("user_id")
-  title      String
-  url        String
-  notes      String   @default("")
-  orderIndex Int      @map("order_index")
-  isDeleted  Boolean  @default(false) @map("is_deleted")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-  leetcodeId  String?  @map("leetcode_id")  // 关联预设题目的ID
-
-  // 关联
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  leetcodeProblem LeetCodeProblem? @relation(fields: [leetcodeId], references: [id])  // 添加这行
-   
-
-  @@map("problems")
-}
 
 model StudyRecord {
   id          String    @id @default(cuid())
@@ -143,12 +124,18 @@ model LeetCodeProblem {
   url         String   // LeetCode链接
   tags        String[] // 标签数组
   category    String?  // 分类（如：数组、链表等）
+  
+  // 扩展字段：支持用户自定义题目
+  isPublic    Boolean  @default(true)  // true=公共题目，false=私有题目
+  createdBy   String?  @map("created_by") // 创建者ID，公共题目为null
+  notes       String   @default("")     // 用户笔记
+  
   createdAt   DateTime @default(now()) @map("created_at")
 
   // 关联
-  problems    Problem[]
   studyRecords StudyRecord[]
-  taskItems   TaskItem[]  // 新增关联
+  taskItems   TaskItem[]
+  creator     User? @relation("CreatedProblems", fields: [createdBy], references: [id])
 
   @@map("leetcode_problems")
 }

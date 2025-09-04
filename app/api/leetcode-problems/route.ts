@@ -67,7 +67,9 @@ export async function POST(request: Request) {
         difficulty: difficulty || 'medium',
         category: category || 'Array',
         number: number ? parseInt(number) : null,
-        tags: tags || [category || 'Array']
+        tags: tags || [category || 'Array'],
+        isPublic: false,  // 改为私有
+        createdBy: session.user.id  // 设置创建者
       }
     })
 
