@@ -372,13 +372,13 @@ export default function PlanDetailsPage() {
                         </a>
                         <Tag 
                           color={
-                            problem.difficulty === 'Easy' ? 'green' :
-                            problem.difficulty === 'Medium' ? 'orange' : 'red'
+                            problem.difficulty === 'easy' ? 'green' :
+                            problem.difficulty === 'medium' ? 'orange' : 'red'
                           }
                           style={{ fontSize: '10px', marginTop: '2px' }}
                         >
-                          {problem.difficulty === 'Easy' ? '简单' :
-                           problem.difficulty === 'Medium' ? '中等' : '困难'}
+                          {problem.difficulty === 'easy' ? '简单' :
+                           problem.difficulty === 'medium' ? '中等' : '困难'}
                         </Tag>
                       </div>
                     ))}
@@ -419,13 +419,13 @@ export default function PlanDetailsPage() {
                         <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
                           <Tag 
                             color={
-                              problem.difficulty === 'Easy' ? 'green' :
-                              problem.difficulty === 'Medium' ? 'orange' : 'red'
+                              problem.difficulty === 'easy' ? 'green' :
+                              problem.difficulty === 'medium' ? 'orange' : 'red'
                             }
                             style={{ fontSize: '10px' }}
                           >
-                            {problem.difficulty === 'Easy' ? '简单' :
-                             problem.difficulty === 'Medium' ? '中等' : '困难'}
+                            {problem.difficulty === 'easy' ? '简单' :
+                             problem.difficulty === 'medium' ? '中等' : '困难'}
                           </Tag>
                           <Tag color="blue" style={{ fontSize: '10px' }}>
                             复习{problem.reviewCount || 0}次
