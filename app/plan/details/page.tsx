@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { ArrowLeft, Calendar, Target, Clock, BookOpen, Trash2, Plus, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Calendar, Target, Clock, BookOpen, Trash2, Plus, ExternalLink, Download } from 'lucide-react'
 import { message, Modal, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import styles from './page.module.sass'
@@ -153,6 +153,85 @@ export default function PlanDetailsPage() {
     })
   }
 
+  const handleExportToExcel = () => {
+    if (!data?.dailySchedule) {
+      message.warning('没有可导出的学习计划数据')
+      return
+    }
+
+    try {
+      // 准备CSV数据 - 每日学习计划表
+      const csvRows: string[][] = []
+      
+      // 添加表头
+      csvRows.push([
+        '日期',
+        '第几天',
+        '状态',
+        '新题目',
+        '复习题目',
+        '总题目数',
+        '已完成数'
+      ])
+
+      // 处理每日数据
+      data.dailySchedule.forEach(day => {
+        // 格式化新题目列表
+        const newProblemsText = day.newProblems.map(p => 
+          `#${p.number} ${p.title} (${p.difficulty === 'easy' ? '简单' : p.difficulty === 'medium' ? '中等' : '困难'})`
+        ).join('; ') || '无新题目'
+
+        // 格式化复习题目列表
+        const reviewProblemsText = day.reviewProblems.map(p => 
+          `#${p.number} ${p.title} (${p.difficulty === 'easy' ? '简单' : p.difficulty === 'medium' ? '中等' : '困难'}, 复习${p.reviewCount || 0}次)`
+        ).join('; ') || '无复习题目'
+
+        // 格式化状态
+        const statusText = 
+          day.status === 'completed' ? '已完成' :
+          day.status === 'partial' ? '部分完成' :
+          day.status === 'overdue' ? '已逾期' : '待完成'
+
+        csvRows.push([
+          new Date(day.date).toLocaleDateString('zh-CN'),
+          `第${day.day}天`,
+          statusText,
+          newProblemsText,
+          reviewProblemsText,
+          day.totalProblems.toString(),
+          day.completedProblems.toString()
+        ])
+      })
+
+      // 创建CSV内容
+      const csvContent = csvRows
+        .map(row => row.map(field => `"${field}"`).join(','))
+        .join('\n')
+
+      // 添加BOM以支持中文
+      const BOM = '\uFEFF'
+      const csvWithBOM = BOM + csvContent
+
+      // 创建并下载文件
+      const blob = new Blob([csvWithBOM], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      
+      link.setAttribute('href', url)
+      link.setAttribute('download', `${data.plan.name}_每日学习计划_${new Date().toLocaleDateString('zh-CN')}.csv`)
+      link.style.visibility = 'hidden'
+      
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      message.success('导出成功！文件已下载到本地')
+    } catch (error) {
+      console.error('导出失败:', error)
+      message.error('导出失败，请重试')
+    }
+  }
+
   if (status === 'loading' || loading) {
     return (
       <div className={styles.container}>
@@ -281,7 +360,17 @@ export default function PlanDetailsPage() {
 
         {/* 学习计划表 */}
         <div className={styles.problemsSection}>
-          <h3>学习计划表</h3>
+          <div className={styles.sectionHeader}>
+            <h3>学习计划表</h3>
+            <button 
+              className={styles.exportButton}
+              onClick={handleExportToExcel}
+              title="导出Excel表格"
+            >
+              <Download size={16} />
+              导出Excel
+            </button>
+          </div>
           <Table
             dataSource={data.dailySchedule || []}
             rowKey="day"
