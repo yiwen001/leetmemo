@@ -66,7 +66,10 @@ export async function GET(
     const completedTasks = plan.dailyTasks.filter(task => task.status === 'completed').length
     const totalProblems = plan.planProblems.length
     const learnedProblems = plan.learnedProblems.length
-    const completedProblems = studyRecords.filter(record => record.completed).length
+    // 使用当前计划的TaskItem完成状态，而不是StudyRecord
+    const completedProblems = plan.dailyTasks.reduce((total, task) => {
+      return total + task.taskItems.filter(item => item.completed).length
+    }, 0)
 
     // 计算进度
     const dayProgress = totalDays > 0 ? Math.round((completedTasks / totalDays) * 100) : 0
