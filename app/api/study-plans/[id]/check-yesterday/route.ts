@@ -124,31 +124,19 @@ export async function GET(
     const tasksToUpdate = []
 
     for (const task of pendingTasks) {
-      const allTaskProblems = task.taskItems.map(item => item.problemId)
-      
-      // 检查这些题目的完成状态（使用与calendar-data相同的逻辑）
-      const completedRecords = await prisma.studyRecord.findMany({
-        where: {
-          userId: session.user.id,
-          problemId: { in: allTaskProblems }
-        }
-      })
-
-      const completedProblemIds = new Set(completedRecords.filter(r => r.completed).map(r => r.problemId))
-      
-      // 计算未完成的题目
+      // 直接使用TaskItem.completed状态，不依赖StudyRecord
       const uncompletedNewProblems = task.taskItems
-        .filter(item => item.taskType === 'new' && !completedProblemIds.has(item.problemId))
+        .filter(item => item.taskType === 'new' && !item.completed)
         .map(item => item.problemId)
       const uncompletedReviewProblems = task.taskItems
-        .filter(item => item.taskType === 'review' && !completedProblemIds.has(item.problemId))
+        .filter(item => item.taskType === 'review' && !item.completed)
         .map(item => item.problemId)
       
       const uncompletedCount = uncompletedNewProblems.length + uncompletedReviewProblems.length
       
       console.log(`Task ${task.day} (${task.currentDate.toISOString().split('T')[0]}):`, {
-        totalProblems: allTaskProblems.length,
-        completedOnDate: completedProblemIds.size,
+        totalProblems: task.taskItems.length,
+        completedCount: task.taskItems.filter(item => item.completed).length,
         uncompletedCount,
         uncompletedNew: uncompletedNewProblems,
         uncompletedReview: uncompletedReviewProblems
