@@ -49,11 +49,14 @@ export async function GET(
       }
     })
 
-    // 查找所有过期的任务（不管status，我们要重新计算实际完成情况）
+    // 查找所有过期的任务（排除已处理的积压任务）
     const pendingTasks = await prisma.dailyTask.findMany({
       where: {
         planId: planId,
-        currentDate: { lt: today }
+        currentDate: { lt: today },
+        status: { 
+          not: 'rollover_processed' // 排除已处理的积压任务
+        }
       },
       include: {
         taskItems: true
@@ -187,7 +190,7 @@ export async function GET(
       }
     }
 
-    // 顺延未完成的任务到今天
+    // 顺延未完成的任务到今天（添加防重复机制）
     if (tasksToUpdate.length > 0) {
       // 检查今天是否已有任务
       const todayTask = await prisma.dailyTask.findFirst({
@@ -197,40 +200,58 @@ export async function GET(
             gte: today,
             lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
           }
+        },
+        include: {
+          taskItems: true
         }
       })
 
+      // 收集所有需要添加的题目
+      const allUncompletedNew = tasksToUpdate.flatMap(t => t.newProblems)
+      const allUncompletedReview = tasksToUpdate.flatMap(t => t.reviewProblems)
+      
       if (todayTask) {
-        // 合并到今天的任务中
-        const allUncompletedNew = tasksToUpdate.flatMap(t => t.newProblems)
-        const allUncompletedReview = tasksToUpdate.flatMap(t => t.reviewProblems)
+        // 检查哪些题目已经存在于今天的任务中，避免重复添加
+        const existingProblemIds = new Set(todayTask.taskItems.map(item => item.problemId))
         
-        // 为今天的任务添加未完成的TaskItems
-        const newTaskItems = [
-          ...allUncompletedNew.map(problemId => ({
-            dailyTaskId: todayTask.id,
-            problemId,
-            taskType: 'new',
-            completed: false
-          })),
-          ...allUncompletedReview.map(problemId => ({
-            dailyTaskId: todayTask.id,
-            problemId,
-            taskType: 'review',
-            completed: false
-          }))
-        ]
+        const newProblemsToAdd = allUncompletedNew.filter(problemId => !existingProblemIds.has(problemId))
+        const reviewProblemsToAdd = allUncompletedReview.filter(problemId => !existingProblemIds.has(problemId))
         
-        await prisma.taskItem.createMany({
-          data: newTaskItems
+        console.log('Preventing duplicates:', {
+          totalNew: allUncompletedNew.length,
+          totalReview: allUncompletedReview.length,
+          existingProblems: existingProblemIds.size,
+          newToAdd: newProblemsToAdd.length,
+          reviewToAdd: reviewProblemsToAdd.length
         })
-
-        // 不删除历史任务记录，保留用于日历显示
+        
+        // 只添加不存在的题目
+        if (newProblemsToAdd.length > 0 || reviewProblemsToAdd.length > 0) {
+          const newTaskItems = [
+            ...newProblemsToAdd.map(problemId => ({
+              dailyTaskId: todayTask.id,
+              problemId,
+              taskType: 'new',
+              completed: false
+            })),
+            ...reviewProblemsToAdd.map(problemId => ({
+              dailyTaskId: todayTask.id,
+              problemId,
+              taskType: 'review',
+              completed: false
+            }))
+          ]
+          
+          await prisma.taskItem.createMany({
+            data: newTaskItems
+          })
+          
+          console.log(`Added ${newTaskItems.length} new task items to today`)
+        } else {
+          console.log('No new task items to add - all problems already exist for today')
+        }
       } else {
         // 创建新的今日任务
-        const allUncompletedNew = tasksToUpdate.flatMap(t => t.newProblems)
-        const allUncompletedReview = tasksToUpdate.flatMap(t => t.reviewProblems)
-        
         const newDailyTask = await prisma.dailyTask.create({
           data: {
             planId: planId,
@@ -260,8 +281,19 @@ export async function GET(
         await prisma.taskItem.createMany({
           data: newTaskItems
         })
-
-        // 不删除历史任务记录，保留用于日历显示
+        
+        console.log(`Created new daily task with ${newTaskItems.length} task items`)
+      }
+      
+      // 标记已处理的过期任务为已完成，避免重复处理
+      for (const taskToUpdate of tasksToUpdate) {
+        await prisma.dailyTask.update({
+          where: { id: taskToUpdate.taskId },
+          data: { 
+            status: 'rollover_processed', // 新状态，表示已处理积压
+            completedAt: new Date()
+          }
+        })
       }
     }
 
