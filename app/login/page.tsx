@@ -96,12 +96,12 @@ export default function LoginPage() {
         <div className={styles.loginBox}>
           <div className={styles.loginHeader}>
             <h2>欢迎来到 LeetMemo</h2>
-            <p>使用 GitHub 账号快速开始</p>
+            <p>使用 Gitee 账号快速开始</p>
           </div>
 
           <div className={styles.loginContent}>
             {/* GitHub 登录按钮 */}
-            <button 
+            {/* <button 
               className={styles.githubButton}
               onClick={handleGithubLogin}
               disabled={isLoading}
@@ -109,7 +109,7 @@ export default function LoginPage() {
               <Github size={20} />
               <span>{isLoading ? '登录中...' : '使用 GitHub 登录'}</span>
               <ArrowRight size={16} className={styles.arrow} />
-            </button>
+            </button> */}
             <button 
   className={styles.giteeButton}
   onClick={handleGiteeLogin}
@@ -120,12 +120,12 @@ export default function LoginPage() {
   <span>{isLoading ? '登录中...' : '使用 Gitee 登录'}</span>
 </button>
 
-            <div className={styles.divider}>
+            {/* <div className={styles.divider}>
               <span>或</span>
-            </div>
+            </div> */}
 
             {/* 游客模式 */}
-            <button 
+            {/* <button 
               className={styles.guestButton}
               onClick={() => {
                 localStorage.setItem('guestMode', 'true')
@@ -140,10 +140,10 @@ export default function LoginPage() {
               }}
             >
               先随便看看 →
-            </button>
+            </button> */}
           </div>
 
-          <div className={styles.loginFooter}>
+          {/* <div className={styles.loginFooter}>
             <p className={styles.description}>
               登录后可以同步您的复习进度，享受完整功能
             </p>
@@ -153,7 +153,7 @@ export default function LoginPage() {
               和
               <a href="#" onClick={(e) => e.preventDefault()}>隐私政策</a>
             </p>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>
