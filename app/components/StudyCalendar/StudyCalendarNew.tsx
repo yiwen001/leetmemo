@@ -211,6 +211,7 @@ export default function StudyCalendarNew({ planId }: StudyCalendarProps) {
       case 'completed': return '#52c41a'
       case 'partial': return '#faad14'
       case 'overdue': return '#f5222d'
+      case 'rollover_processed': return '#f5222d' // 已逾期（积压处理）
       case 'pending': return '#d9d9d9'
       default: return '#f0f0f0'
     }
@@ -221,6 +222,7 @@ export default function StudyCalendarNew({ planId }: StudyCalendarProps) {
       case 'completed': return '已完成'
       case 'partial': return '部分完成'
       case 'overdue': return '已逾期'
+      case 'rollover_processed': return '已逾期' // 显示为已逾期，不暴露技术细节
       case 'pending': return '待完成'
       default: return '无任务'
     }

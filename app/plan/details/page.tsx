@@ -196,7 +196,8 @@ export default function PlanDetailsPage() {
         const statusText = 
           day.status === 'completed' ? '已完成' :
           day.status === 'partial' ? '部分完成' :
-          day.status === 'overdue' ? '已逾期' : '待完成'
+          day.status === 'overdue' ? '已逾期' :
+          day.status === 'rollover_processed' ? '已逾期' : '待完成'
 
         csvRows.push([
           new Date(day.date).toLocaleDateString('zh-CN'),
@@ -408,13 +409,19 @@ export default function PlanDetailsPage() {
                   { text: '待完成', value: 'pending' },
                   { text: '已逾期', value: 'overdue' }
                 ],
-                onFilter: (value, record) => record.status === value,
+                onFilter: (value, record) => {
+                  if (value === 'overdue') {
+                    return record.status === 'overdue' || record.status === 'rollover_processed'
+                  }
+                  return record.status === value
+                },
                 render: (status) => {
                   const statusMap = {
                     'completed': { color: 'success', text: '已完成' },
                     'partial': { color: 'warning', text: '部分完成' },
                     'pending': { color: 'default', text: '待完成' },
-                    'overdue': { color: 'error', text: '已逾期' }
+                    'overdue': { color: 'error', text: '已逾期' },
+                    'rollover_processed': { color: 'error', text: '已逾期' }
                   }
                   const config = statusMap[status as keyof typeof statusMap] || { color: 'default', text: status }
                   return <Tag color={config.color}>{config.text}</Tag>
@@ -535,7 +542,7 @@ export default function PlanDetailsPage() {
             ] as ColumnsType<any>}
             rowClassName={(record) => {
               if (record.status === 'completed') return styles.completedRow
-              if (record.status === 'overdue') return styles.overdueRow
+              if (record.status === 'overdue' || record.status === 'rollover_processed') return styles.overdueRow
               return ''
             }}
           />
