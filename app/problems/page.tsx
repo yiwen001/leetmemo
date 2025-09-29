@@ -311,11 +311,10 @@ export default function ProblemsPage() {
                   )}
                 </div>
                 <div className={styles.cardContent}>
-                  <div className={styles.notes}>
+                  <div className={`${styles.notes} ${styles.markdown}`}>
                     <ReactMarkdown
                       rehypePlugins={[rehypeSanitize, rehypeRaw]}
                       remarkPlugins={[remarkGfm]}
-                      
                     >
                       {problem.notes || '*暂无笔记*'}
                     </ReactMarkdown>
@@ -355,11 +354,10 @@ export default function ProblemsPage() {
         </div>
         
         {isPreviewMode ? (
-          <div className={styles.previewPane}>
+          <div className={`${styles.previewPane} ${styles.markdown}`}>
             <ReactMarkdown
               rehypePlugins={[rehypeSanitize, rehypeRaw]}
               remarkPlugins={[remarkGfm]}
-              
             >
               {currentNotes || '*暂无内容*'}
             </ReactMarkdown>
