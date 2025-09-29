@@ -71,7 +71,29 @@ export async function GET(
       return total + task.taskItems.filter(item => item.completed).length
     }, 0)
 
-    // 计算进度
+    // 计算基于天数的进度
+    let totalDayProgress = 0
+    let completedDaysCount = 0
+    
+    plan.dailyTasks.forEach(task => {
+      const totalTaskItems = task.taskItems.length
+      const completedTaskItems = task.taskItems.filter(item => item.completed).length
+      
+      if (totalTaskItems > 0) {
+        const dayCompletionRate = completedTaskItems / totalTaskItems
+        totalDayProgress += dayCompletionRate
+        
+        // 如果当天完成度达到100%，计为完成的天数
+        if (dayCompletionRate === 1) {
+          completedDaysCount++
+        }
+      }
+    })
+    
+    // 总体进度 = 所有天数完成度的平均值
+    const dayBasedProgress = totalDays > 0 ? (totalDayProgress / totalDays) * 100 : 0
+    
+    // 传统的基于题目的进度（保留作为备用）
     const dayProgress = totalDays > 0 ? Math.round((completedTasks / totalDays) * 100) : 0
     const problemProgress = totalProblems > 0 ? Math.round((learnedProblems / totalProblems) * 100) : 0
 
@@ -164,7 +186,13 @@ export async function GET(
         totalProblems,
         completedProblems,
         remainingProblems: totalProblems - completedProblems,
-        progress: totalProblems > 0 ? (completedProblems / totalProblems) * 100 : 0,
+        // 新的基于天数的进度
+        progress: Math.round(dayBasedProgress),
+        dayBasedProgress: Math.round(dayBasedProgress),
+        completedDays: completedDaysCount,
+        totalDays,
+        // 传统的基于题目的进度（保留）
+        problemBasedProgress: totalProblems > 0 ? (completedProblems / totalProblems) * 100 : 0,
         dailyTarget: Math.ceil(totalProblems / plan.duration),
         estimatedCompletion,
         problems,

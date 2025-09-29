@@ -472,6 +472,11 @@ export default function HomePage() {
   const todayTarget = problems.length
   const uncompletedCount = problems.filter(p => !p.completed).length
 
+  // 基于天数的进度数据
+  const totalDays = studyPlan?.totalDays || 0
+  const completedDays = studyPlan?.completedDays || 0
+  const dayBasedProgress = studyPlan?.dayBasedProgress || 0
+
   return (
     <div className={styles.container}>
       {/* 导航栏 */}
@@ -542,7 +547,7 @@ export default function HomePage() {
               <div style={{
                 height: '100%',
                 backgroundColor: '#10b981',
-                width: `${totalProblems > 0 ? (completedProblems / totalProblems) * 100 : 0}%`,
+                width: `${dayBasedProgress}%`,
                 transition: 'width 0.3s ease'
               }}></div>
             </div>
@@ -552,7 +557,7 @@ export default function HomePage() {
               color: '#374151',
               minWidth: '80px'
             }}>
-              {completedProblems} / {totalProblems}
+              {completedDays} / {totalDays} 天
             </span>
           </div>
           <p style={{ 
@@ -560,7 +565,7 @@ export default function HomePage() {
             color: '#6b7280', 
             margin: 0 
           }}>
-            已完成 {totalProblems > 0 ? ((completedProblems / totalProblems) * 100).toFixed(1) : 0}%
+            已完成 {dayBasedProgress.toFixed(1)}%
           </p>
         </div>
 

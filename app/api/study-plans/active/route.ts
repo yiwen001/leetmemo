@@ -19,14 +19,53 @@ export async function GET() {
       },
       include: {
         dailyTasks: {
+          include: {
+            taskItems: true
+          },
           orderBy: { day: 'asc' }
         }
       }
     })
 
+    if (!activePlan) {
+      return NextResponse.json({
+        success: true,
+        plan: null
+      })
+    }
+
+    // 计算基于天数的进度
+    const totalDays = activePlan.dailyTasks.length
+    let totalDayProgress = 0
+    let completedDaysCount = 0
+    
+    activePlan.dailyTasks.forEach(task => {
+      const totalTaskItems = task.taskItems.length
+      const completedTaskItems = task.taskItems.filter(item => item.completed).length
+      
+      if (totalTaskItems > 0) {
+        const dayCompletionRate = completedTaskItems / totalTaskItems
+        totalDayProgress += dayCompletionRate
+        
+        // 如果当天完成度达到100%，计为完成的天数
+        if (dayCompletionRate === 1) {
+          completedDaysCount++
+        }
+      }
+    })
+    
+    // 总体进度 = 所有天数完成度的平均值
+    const dayBasedProgress = totalDays > 0 ? (totalDayProgress / totalDays) * 100 : 0
+
     return NextResponse.json({
       success: true,
-      plan: activePlan
+      plan: {
+        ...activePlan,
+        // 添加基于天数的进度信息
+        totalDays,
+        completedDays: completedDaysCount,
+        dayBasedProgress: Math.round(dayBasedProgress)
+      }
     })
 
   } catch (error) {

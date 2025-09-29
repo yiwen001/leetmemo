@@ -22,6 +22,12 @@ interface PlanDetailsData {
   completedProblems: number
   remainingProblems: number
   progress: number
+  // 新的基于天数的进度字段
+  dayBasedProgress: number
+  completedDays: number
+  totalDays: number
+  // 传统的基于题目的进度（保留）
+  problemBasedProgress: number
   dailyTarget: number
   estimatedCompletion: string
   problems: Array<{
@@ -353,7 +359,7 @@ export default function PlanDetailsPage() {
               ></div>
             </div>
             <div className={styles.progressText}>
-              {data.completedProblems} / {data.totalProblems} 题已完成
+              {data.completedDays} / {data.totalDays} 天已完成
             </div>
           </div>
         </div>

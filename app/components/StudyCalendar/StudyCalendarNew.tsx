@@ -240,7 +240,7 @@ export default function StudyCalendarNew({ planId }: StudyCalendarProps) {
   return (
     <div className={styles.calendarContainer}>
       {/* 统计信息 */}
-      <div className={styles.calendarStats}>
+      {/* <div className={styles.calendarStats}>
         <div className={styles.statItem}>
           <span className={styles.statLabel}>总天数</span>
           <span className={styles.statValue}>{statistics.totalDays}</span>
@@ -261,7 +261,7 @@ export default function StudyCalendarNew({ planId }: StudyCalendarProps) {
           <span className={styles.statLabel}>完成率</span>
           <span className={styles.statValue}>{statistics.completionRate}%</span>
         </div>
-      </div>
+      </div> */}
 
       {/* 日历头部 */}
       <div className={styles.calendarHeader}>

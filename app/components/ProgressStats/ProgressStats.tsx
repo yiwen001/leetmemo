@@ -5,23 +5,31 @@ import { CheckCircle, Target, Calendar, TrendingUp } from 'lucide-react'
 import styles from './ProgressStats.module.sass'
 
 interface ProgressStatsProps {
-  totalProblems: number
-  completedProblems: number
+  // 基于天数的进度数据
+  totalDays: number
+  completedDays: number
+  dayBasedProgress: number
+  // 今日任务数据
   todayCompleted: number
   todayTarget: number
+  // 其他数据
+  totalProblems: number
   streak: number
   loading?: boolean
 }
 
 export default function ProgressStats({
-  totalProblems,
-  completedProblems,
+  totalDays,
+  completedDays,
+  dayBasedProgress,
   todayCompleted,
   todayTarget,
+  totalProblems,
   streak,
   loading = false
 }: ProgressStatsProps) {
-  const overallProgress = totalProblems > 0 ? (completedProblems / totalProblems) * 100 : 0
+  // 使用基于天数的进度
+  const overallProgress = dayBasedProgress
   const todayProgress = todayTarget > 0 ? (todayCompleted / todayTarget) * 100 : 0
 
   if (loading) {
@@ -42,7 +50,7 @@ export default function ProgressStats({
           <div className={styles.progressInfo}>
             <h3>学习进度</h3>
             <span className={styles.progressText}>
-              {completedProblems} / {totalProblems} 题
+              {completedDays} / {totalDays} 天
             </span>
           </div>
           <div className={styles.progressPercentage}>
@@ -59,7 +67,7 @@ export default function ProgressStats({
         
         <div className={styles.progressLabels}>
           <span>已完成</span>
-          <span>剩余 {totalProblems - completedProblems} 题</span>
+          <span>剩余 {totalDays - completedDays} 天</span>
         </div>
       </div>
 
@@ -121,7 +129,7 @@ export default function ProgressStats({
           </div>
           <div className={styles.statContent}>
             <div className={styles.statValue}>
-              {totalProblems > 0 ? Math.ceil((totalProblems - completedProblems) / 3) : 0}
+              {totalDays - completedDays}
             </div>
             <div className={styles.statLabel}>预计剩余天数</div>
             <div className={styles.statSubtext}>
