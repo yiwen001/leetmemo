@@ -15,7 +15,7 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { taskItemId } = body
+    const { taskItemId, completed = true } = body
 
     if (!taskItemId) {
       return NextResponse.json({ 
@@ -53,58 +53,60 @@ export async function POST(
     // 2. 更新TaskItem状态（今日任务完成状态）
     await prisma.taskItem.update({
       where: { id: taskItemId },
-      data: { completed: true }
+      data: { completed }
     })
 
-    // 3. 更新长期学习记录（StudyRecord）
-    const problemId = taskItem.problemId
-    const planId = taskItem.dailyTask.planId
+    // 3. 更新长期学习记录（StudyRecord）- 只在标记完成时更新
+    if (completed) {
+      const problemId = taskItem.problemId
+      const planId = taskItem.dailyTask.planId
 
-    // 如果是新题目，添加到已学习列表
-    if (taskItem.taskType === 'new') {
-      const plan = taskItem.dailyTask.plan
-      const currentLearned = plan.learnedProblems || []
-      if (!currentLearned.includes(problemId)) {
-        await prisma.studyPlan.update({
-          where: { id: planId },
+      // 如果是新题目，添加到已学习列表
+      if (taskItem.taskType === 'new') {
+        const plan = taskItem.dailyTask.plan
+        const currentLearned = plan.learnedProblems || []
+        if (!currentLearned.includes(problemId)) {
+          await prisma.studyPlan.update({
+            where: { id: planId },
+            data: {
+              learnedProblems: [...currentLearned, problemId]
+            }
+          })
+        }
+      }
+
+      // 创建或更新StudyRecord
+      const existingRecord = await prisma.studyRecord.findFirst({
+        where: {
+          userId: session.user.id,
+          problemId: problemId
+        }
+      })
+
+      if (existingRecord) {
+        // 更新现有记录
+        await prisma.studyRecord.update({
+          where: { id: existingRecord.id },
           data: {
-            learnedProblems: [...currentLearned, problemId]
+            reviewCount: existingRecord.reviewCount + 1,
+            lastReviewDate: new Date(),
+            completed: true
+          }
+        })
+      } else {
+        // 创建新记录
+        await prisma.studyRecord.create({
+          data: {
+            userId: session.user.id,
+            problemId: problemId,
+            studyPlanId: planId,
+            reviewCount: 1,
+            lastReviewDate: new Date(),
+            completed: true,
+            notes: ''
           }
         })
       }
-    }
-
-    // 创建或更新StudyRecord
-    const existingRecord = await prisma.studyRecord.findFirst({
-      where: {
-        userId: session.user.id,
-        problemId: problemId
-      }
-    })
-
-    if (existingRecord) {
-      // 更新现有记录
-      await prisma.studyRecord.update({
-        where: { id: existingRecord.id },
-        data: {
-          reviewCount: existingRecord.reviewCount + 1,
-          lastReviewDate: new Date(),
-          completed: true
-        }
-      })
-    } else {
-      // 创建新记录
-      await prisma.studyRecord.create({
-        data: {
-          userId: session.user.id,
-          problemId: problemId,
-          studyPlanId: planId,
-          reviewCount: 1,
-          lastReviewDate: new Date(),
-          completed: true,
-          notes: ''
-        }
-      })
     }
 
     // 4. 检查DailyTask是否整体完成
@@ -114,6 +116,7 @@ export async function POST(
 
     const allCompleted = allTaskItems.every(item => item.completed)
     
+    // 更新DailyTask状态
     if (allCompleted) {
       await prisma.dailyTask.update({
         where: { id: taskItem.dailyTaskId },
@@ -122,12 +125,21 @@ export async function POST(
           completedAt: new Date()
         }
       })
+    } else {
+      // 如果不是全部完成，确保DailyTask状态不是completed
+      await prisma.dailyTask.update({
+        where: { id: taskItem.dailyTaskId },
+        data: { 
+          status: 'active',
+          completedAt: null
+        }
+      })
     }
 
     return NextResponse.json({
       success: true,
-      message: '任务完成成功',
-      taskCompleted: true,
+      message: completed ? '任务完成成功' : '已取消完成标记',
+      taskCompleted: completed,
       dailyTaskCompleted: allCompleted
     })
 

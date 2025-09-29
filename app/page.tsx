@@ -428,19 +428,47 @@ export default function HomePage() {
   }
 
   // 取消标记功能
-  const handleUncompleteReview = (problemId: string) => {
-    setProblems(prev => 
-      prev.map(problem => 
-        problem.id === problemId 
-          ? { 
-              ...problem, 
-              completed: false  // 只修改今日任务完成状态，不影响学习历史
-            }
-          : problem
-      )
-    )
-    
-    message.success('已取消完成标记')
+  const handleUncompleteReview = async (problemId: string) => {
+    if (!studyPlan?.id) return
+
+    const problem = problems.find(p => p.id === problemId)
+    if (!problem) return
+
+    try {
+      const response = await fetch(`/api/study-plans/${studyPlan.id}/complete-task`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          taskItemId: problem.taskItemId,
+          completed: false  // 取消完成标记
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        // 更新本地状态
+        setProblems(prev => 
+          prev.map(p => 
+            p.id === problemId 
+              ? { 
+                  ...p, 
+                  completed: false
+                }
+              : p
+          )
+        )
+
+        message.success('已取消完成标记')
+      } else {
+        message.error(result.error || '取消标记失败')
+      }
+    } catch (error) {
+      console.error('取消标记失败:', error)
+      message.error('取消标记失败，请重试')
+    }
   }
 
   // 排序：未完成的在前，已完成的在后
