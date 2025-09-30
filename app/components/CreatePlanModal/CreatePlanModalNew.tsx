@@ -50,6 +50,11 @@ export default function CreatePlanModalNew({ open, onCancel, onSubmit, loading }
   })
   const [addingProblem, setAddingProblem] = useState(false)
   
+  // 批量导入相关状态
+  const [showBatchImport, setShowBatchImport] = useState(false)
+  const [batchImportData, setBatchImportData] = useState('')
+  const [batchImporting, setBatchImporting] = useState(false)
+  
   // 预览相关状态
   const [showPreview, setShowPreview] = useState(false)
 
@@ -134,6 +139,140 @@ export default function CreatePlanModalNew({ open, onCancel, onSubmit, loading }
       title: url ? parseTitle(url) : prev.title,
       number: parsedNumber ? parsedNumber.toString() : ''
     }))
+  }
+
+  // 生成示例模板数据
+  const generateSampleData = () => {
+    const sampleData = [
+      {
+        "url": "https://leetcode.com/problems/two-sum/",
+        "title": "Two Sum",
+        "titleCn": "两数之和",
+        "difficulty": "easy",
+        "category": "Array",
+        "number": 1,
+        "tags": ["Array", "Hash Table"]
+      },
+      {
+        "url": "https://leetcode.com/problems/add-two-numbers/",
+        "title": "Add Two Numbers",
+        "titleCn": "两数相加", 
+        "difficulty": "medium",
+        "category": "Linked List",
+        "tags": ["Linked List", "Math"]
+      }
+    ]
+    
+    setBatchImportData(JSON.stringify(sampleData, null, 2))
+    message.success('已生成示例数据，您可以修改后导入')
+  }
+
+  // 批量导入题目
+  const handleBatchImport = async () => {
+    if (!batchImportData.trim()) {
+      message.error('请输入要导入的题目数据')
+      return
+    }
+
+    setBatchImporting(true)
+    try {
+      // 解析JSON数据
+      let problemsData
+      try {
+        problemsData = JSON.parse(batchImportData)
+      } catch (error) {
+        message.error('JSON格式错误，请检查数据格式')
+        return
+      }
+
+      // 验证数据格式
+      if (!Array.isArray(problemsData)) {
+        message.error('数据必须是数组格式')
+        return
+      }
+
+      // 验证每个题目的必要字段
+      const validProblems = []
+      const errors = []
+
+      for (let i = 0; i < problemsData.length; i++) {
+        const problem = problemsData[i]
+        
+        if (!problem.url || !problem.title) {
+          errors.push(`第${i + 1}个题目缺少必要字段 (url, title)`)
+          continue
+        }
+
+        // 解析slug和number
+        const slug = parseSlug(problem.url)
+        const number = parseNumber(problem.url) || problem.number
+
+        if (!slug) {
+          errors.push(`第${i + 1}个题目URL格式无效: ${problem.url}`)
+          continue
+        }
+
+        validProblems.push({
+          slug,
+          url: problem.url,
+          title: problem.title,
+          titleCn: problem.titleCn || problem.title,
+          difficulty: problem.difficulty || 'medium',
+          category: problem.category || 'Array',
+          number: number || 0,
+          tags: Array.isArray(problem.tags) ? problem.tags : [problem.category || 'Array']
+        })
+      }
+
+      if (errors.length > 0) {
+        message.error(`发现 ${errors.length} 个错误:\n${errors.slice(0, 3).join('\n')}${errors.length > 3 ? '\n...' : ''}`)
+        return
+      }
+
+      if (validProblems.length === 0) {
+        message.error('没有有效的题目数据')
+        return
+      }
+
+      // 批量提交到后端
+      const response = await fetch('/api/leetcode-problems/batch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          problems: validProblems
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        message.success(`成功导入 ${result.imported} 道题目，跳过 ${result.skipped} 道重复题目`)
+        
+        // 重新获取题库数据
+        await fetchProblems()
+        
+        // 自动选中所有导入的题目（包括新导入和已存在的）
+        if (result.importedSlugs && result.importedSlugs.length > 0) {
+          setSelectedProblems(prev => {
+            const newSelected = Array.from(new Set([...prev, ...result.importedSlugs]))
+            message.info(`已自动选中 ${result.importedSlugs.length} 道导入的题目`)
+            return newSelected
+          })
+        }
+        
+        // 重置表单
+        setBatchImportData('')
+        setShowBatchImport(false)
+      } else {
+        message.error(result.error || '批量导入失败')
+      }
+    } catch (error) {
+      console.error('批量导入失败:', error)
+      message.error('批量导入失败')
+    } finally {
+      setBatchImporting(false)
+    }
   }
 
   // 手动添加题目

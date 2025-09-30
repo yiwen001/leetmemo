@@ -133,6 +133,11 @@ export default function CreatePlanPage() {
   // 手动添加题目相关状态
   const [showAddForm, setShowAddForm] = useState(false)
   const [addingProblem, setAddingProblem] = useState(false)
+  
+  // 批量导入相关状态
+  const [showBatchImport, setShowBatchImport] = useState(false)
+  const [batchImportData, setBatchImportData] = useState('')
+  const [batchImporting, setBatchImporting] = useState(false)
   const [newProblem, setNewProblem] = useState({
     url: '',
     title: '',
@@ -305,6 +310,148 @@ export default function CreatePlanPage() {
       message.warning('网络错误，已进行基本解析')
     } finally {
       setAddingProblem(false)
+    }
+  }
+
+  // 生成示例模板数据
+  const generateSampleData = () => {
+    const sampleData = [
+      {
+        "url": "https://leetcode.com/problems/two-sum/",
+        "title": "Two Sum",
+        "titleCn": "两数之和",
+        "difficulty": "easy",
+        "category": "数组",
+        "number": 1,
+        "tags": ["数组", "哈希表"]
+      },
+      {
+        "url": "https://leetcode.com/problems/add-two-numbers/",
+        "title": "Add Two Numbers",
+        "titleCn": "两数相加", 
+        "difficulty": "medium",
+        "category": "链表",
+        "tags": ["链表", "数学"]
+      },
+      {
+        "url": "https://leetcode.com/problems/longest-substring-without-repeating-characters/",
+        "title": "Longest Substring Without Repeating Characters",
+        "titleCn": "无重复字符的最长子串",
+        "difficulty": "medium",
+        "category": "字符串",
+        "tags": ["字符串", "滑动窗口"]
+      }
+    ]
+    
+    setBatchImportData(JSON.stringify(sampleData, null, 2))
+    message.success('已生成示例数据，您可以修改后导入')
+  }
+
+  // 批量导入题目
+  const handleBatchImport = async () => {
+    if (!batchImportData.trim()) {
+      message.error('请输入要导入的题目数据')
+      return
+    }
+
+    setBatchImporting(true)
+    try {
+      // 解析JSON数据
+      let problemsData
+      try {
+        problemsData = JSON.parse(batchImportData)
+      } catch (error) {
+        message.error('JSON格式错误，请检查数据格式')
+        return
+      }
+
+      // 验证数据格式
+      if (!Array.isArray(problemsData)) {
+        message.error('数据必须是数组格式')
+        return
+      }
+
+      // 验证每个题目的必要字段
+      const validProblems = []
+      const errors = []
+
+      for (let i = 0; i < problemsData.length; i++) {
+        const problem = problemsData[i]
+        
+        if (!problem.url || !problem.title) {
+          errors.push(`第${i + 1}个题目缺少必要字段 (url, title)`)
+          continue
+        }
+
+        // 解析slug和number
+        const slug = parseSlug(problem.url)
+        const number = parseNumber(problem.url) || problem.number
+
+        if (!slug) {
+          errors.push(`第${i + 1}个题目URL格式无效: ${problem.url}`)
+          continue
+        }
+
+        validProblems.push({
+          slug,
+          url: problem.url,
+          title: problem.title,
+          titleCn: problem.titleCn || problem.title,
+          difficulty: problem.difficulty || 'medium',
+          category: getCategoryEnglishName(problem.category || '数组'),
+          number: number || 0,
+          tags: Array.isArray(problem.tags) ? problem.tags : [getCategoryEnglishName(problem.category || '数组')]
+        })
+      }
+
+      if (errors.length > 0) {
+        message.error(`发现 ${errors.length} 个错误:\n${errors.slice(0, 3).join('\n')}${errors.length > 3 ? '\n...' : ''}`)
+        return
+      }
+
+      if (validProblems.length === 0) {
+        message.error('没有有效的题目数据')
+        return
+      }
+
+      // 批量提交到后端
+      const response = await fetch('/api/leetcode-problems/batch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          problems: validProblems
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        message.success(`成功导入 ${result.imported} 道题目，跳过 ${result.skipped} 道重复题目`)
+        
+        // 重新获取题库数据
+        await fetchProblems()
+        
+        // 自动选中所有导入的题目（包括新导入和已存在的）
+        if (result.importedSlugs && result.importedSlugs.length > 0) {
+          setSelectedProblems(prev => {
+            const newSelected = Array.from(new Set([...prev, ...result.importedSlugs]))
+            message.info(`已自动选中 ${result.importedSlugs.length} 道导入的题目`)
+            return newSelected
+          })
+        }
+        
+        // 重置表单
+        setBatchImportData('')
+        setShowBatchImport(false)
+      } else {
+        message.error(result.error || '批量导入失败')
+      }
+    } catch (error) {
+      console.error('批量导入失败:', error)
+      message.error('批量导入失败')
+    } finally {
+      setBatchImporting(false)
     }
   }
 
@@ -568,13 +715,59 @@ export default function CreatePlanPage() {
                   30题速成版
                 </Button>
                 <Button 
-                  type="dashed" 
                   onClick={() => setShowAddForm(!showAddForm)}
                   className={styles.addProblemButton}
                 >
                   {showAddForm ? '取消添加' : '手动添加题目'}
                 </Button>
+                <Button 
+                  onClick={() => setShowBatchImport(true)}
+                  className={styles.batchImportButton}
+                >
+                  批量导入题目
+                </Button>
               </div>
+
+              {/* 批量操作按钮 */}
+              {selectedProblems.length > 0 && (
+                <div className={styles.batchActions}>
+                  <span className={styles.batchActionsLabel}>
+                    批量操作:
+                  </span>
+                  <Button 
+                    size="small"
+                    onClick={() => {
+                      setSelectedProblems([])
+                      message.success('已取消选中所有题目')
+                    }}
+                    className={styles.clearAllButton}
+                  >
+                    取消全选
+                  </Button>
+                  <Button 
+                    size="small"
+                    onClick={() => {
+                      const currentPageSlugs = filteredProblems.map(p => p.slug)
+                      setSelectedProblems(prev => Array.from(new Set([...prev, ...currentPageSlugs])))
+                      message.success(`已选中当前页面的 ${currentPageSlugs.length} 道题目`)
+                    }}
+                    className={styles.selectPageButton}
+                  >
+                    选中当前页
+                  </Button>
+                  <Button 
+                    size="small"
+                    onClick={() => {
+                      const currentPageSlugs = filteredProblems.map(p => p.slug)
+                      setSelectedProblems(prev => prev.filter(slug => !currentPageSlugs.includes(slug)))
+                      message.success('已取消选中当前页面的题目')
+                    }}
+                    className={styles.unselectPageButton}
+                  >
+                    取消当前页
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* 筛选器 */}
@@ -643,6 +836,97 @@ export default function CreatePlanPage() {
                 </div>
               </div>
             </div>
+
+            {/* 批量导入题目表单 */}
+            {showBatchImport && (
+              <div className={styles.batchImportForm}>
+                <h4 className={styles.batchImportTitle}>批量导入题目</h4>
+                <div className={styles.batchImportHint}>
+                  💡 支持JSON格式批量导入，请按照以下模板格式准备数据
+                </div>
+                
+                {/* JSON模板展示 */}
+                <div className={styles.templateSection}>
+                  <h5 className={styles.templateTitle}>📋 JSON模板格式</h5>
+                  <div className={styles.templateCode}>
+                    <pre>{`[
+  {
+    "url": "https://leetcode.com/problems/two-sum/",
+    "title": "Two Sum",
+    "titleCn": "两数之和",
+    "difficulty": "easy",
+    "category": "数组",
+    "number": 1,
+    "tags": ["数组", "哈希表"]
+  },
+  {
+    "url": "https://leetcode.com/problems/add-two-numbers/",
+    "title": "Add Two Numbers", 
+    "titleCn": "两数相加",
+    "difficulty": "medium",
+    "category": "链表"
+  }
+]`}</pre>
+                  </div>
+                  
+                  <div className={styles.templateNotes}>
+                    <h6>📝 字段说明：</h6>
+                    <ul>
+                      <li><strong>url</strong> (必填): LeetCode题目链接</li>
+                      <li><strong>title</strong> (必填): 英文题目名称</li>
+                      <li><strong>titleCn</strong> (可选): 中文题目名称，不填则使用title</li>
+                      <li><strong>difficulty</strong> (可选): 难度 (easy/medium/hard)，默认medium</li>
+                      <li><strong>category</strong> (可选): 分类，支持中文，默认"数组"</li>
+                      <li><strong>number</strong> (可选): 题目编号，会自动从URL解析</li>
+                      <li><strong>tags</strong> (可选): 标签数组，默认使用category</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* 数据输入区域 */}
+                <div className={styles.dataInputSection}>
+                  <div className={styles.inputHeader}>
+                    <h5 className={styles.inputTitle}>📥 粘贴JSON数据</h5>
+                    <Button 
+                      size="small"
+                      onClick={generateSampleData}
+                      className={styles.sampleButton}
+                    >
+                      生成示例数据
+                    </Button>
+                  </div>
+                  <Input.TextArea
+                    placeholder="请粘贴符合上述格式的JSON数据..."
+                    value={batchImportData}
+                    onChange={(e) => setBatchImportData(e.target.value)}
+                    className={styles.batchImportTextarea}
+                    rows={12}
+                    disabled={batchImporting}
+                  />
+                </div>
+
+                {/* 操作按钮 */}
+                <div className={styles.batchImportActions}>
+                  <Button 
+                    onClick={() => {
+                      setBatchImportData('')
+                      setShowBatchImport(false)
+                    }}
+                    disabled={batchImporting}
+                  >
+                    取消
+                  </Button>
+                  <Button 
+                    type="primary" 
+                    onClick={handleBatchImport}
+                    loading={batchImporting}
+                    disabled={!batchImportData.trim()}
+                  >
+                    {batchImporting ? '导入中...' : '开始导入'}
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* 手动添加题目表单 */}
             {showAddForm && (

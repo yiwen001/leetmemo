@@ -90,22 +90,81 @@
   flex-direction: column
   gap: 12px
 
-  :global(.ant-radio-wrapper)
     font-size: 16px
 
 .radioOption
   display: flex
   align-items: center
   justify-content: space-between
-  padding: 12px 16px
-  border: 1px solid #e5e7eb
+  background: #f3f4f6
+  border: 1px solid #d1d5db
+  color: #374151
   border-radius: 8px
-  background: #fafbfc
-  transition: all 0.2s ease
+  font-weight: 500
+  transition: all 0.3s ease
 
   &:hover
-    background: #f0f9ff
-    border-color: #bae6fd
+    background: #e5e7eb
+    border-color: #9ca3af
+
+.batchImportButton
+  background: #8b5cf6
+  border: 1px solid #8b5cf6
+  color: white
+  border-radius: 8px
+  font-weight: 500
+  transition: all 0.3s ease
+
+  &:hover
+    background: #7c3aed
+    border-color: #7c3aed
+
+// 批量操作按钮样式
+.batchActions
+  display: flex
+  align-items: center
+  gap: 8px
+  margin-top: 16px
+  padding: 12px 16px
+  background: #f8fafc
+  border-radius: 8px
+  border: 1px solid #e2e8f0
+
+.batchActionsLabel
+  font-size: 14px
+  font-weight: 500
+  color: #374151
+  margin-right: 8px
+
+.clearAllButton
+  background: #ef4444
+  border-color: #ef4444
+  color: white
+  font-size: 12px
+  
+  &:hover
+    background: #dc2626
+    border-color: #dc2626
+
+.selectPageButton
+  background: #10b981
+  border-color: #10b981
+  color: white
+  font-size: 12px
+  
+  &:hover
+    background: #059669
+    border-color: #059669
+
+.unselectPageButton
+  background: #6b7280
+  border-color: #6b7280
+  color: white
+  font-size: 12px
+  
+  &:hover
+    background: #4b5563
+    border-color: #4b5563
 
 .defaultPreview
   margin-top: 24px
@@ -668,6 +727,115 @@
   background: rgba(16, 185, 129, 0.1)
   border-radius: 16px
   white-space: nowrap
+// 批量导入表单样式
+.batchImportForm
+  margin-bottom: 24px
+  padding: 24px
+  background: #ffffff
+  border: 2px solid #8b5cf6
+  border-radius: 12px
+  box-shadow: 0 4px 6px rgba(139, 92, 246, 0.1)
+
+.batchImportTitle
+  font-size: 18px
+  font-weight: 600
+  color: #8b5cf6
+  margin: 0 0 16px 0
+
+.batchImportHint
+  background: #f3f0ff
+  border: 1px solid #c4b5fd
+  border-radius: 8px
+  padding: 12px 16px
+  margin-bottom: 24px
+  font-size: 14px
+  color: #7c3aed
+  display: flex
+  align-items: center
+  gap: 8px
+
+.templateSection
+  margin-bottom: 24px
+  padding: 20px
+  background: #f8fafc
+  border-radius: 8px
+  border: 1px solid #e2e8f0
+
+.templateTitle
+  font-size: 16px
+  font-weight: 600
+  color: #374151
+  margin: 0 0 16px 0
+
+.templateCode
+  background: #1f2937
+  border-radius: 8px
+  padding: 16px
+  margin-bottom: 16px
+  overflow-x: auto
+
+  pre
+    color: #f9fafb
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace
+    font-size: 13px
+    line-height: 1.5
+    margin: 0
+    white-space: pre-wrap
+
+.templateNotes
+  h6
+    font-size: 14px
+    font-weight: 600
+    color: #374151
+    margin: 0 0 12px 0
+
+  ul
+    margin: 0
+    padding-left: 20px
+    
+  li
+    font-size: 13px
+    color: #6b7280
+    margin-bottom: 6px
+    
+    strong
+      color: #374151
+
+.dataInputSection
+  margin-bottom: 24px
+
+.inputHeader
+  display: flex
+  justify-content: space-between
+  align-items: center
+  margin-bottom: 12px
+
+.inputTitle
+  font-size: 16px
+  font-weight: 600
+  color: #374151
+  margin: 0
+
+.sampleButton
+  background: #f59e0b
+  border-color: #f59e0b
+  color: white
+  font-size: 12px
+  
+  &:hover
+    background: #d97706
+    border-color: #d97706
+
+.batchImportTextarea
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important
+  font-size: 13px !important
+  line-height: 1.5 !important
+
+.batchImportActions
+  display: flex
+  justify-content: flex-end
+  gap: 12px
+
 .addForm
   margin-bottom: 24px
   padding: 24px
