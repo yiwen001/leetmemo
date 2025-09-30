@@ -410,6 +410,50 @@
   color: #6b7280
   font-weight: 400
 
+// 学习状态样式
+.studied
+  position: relative
+  
+  &::before
+    content: ''
+    position: absolute
+    top: 8px
+    right: 8px
+    width: 8px
+    height: 8px
+    background: #10b981
+    border-radius: 50%
+    box-shadow: 0 0 0 2px white
+
+.studyStatusBadges
+  display: flex
+  align-items: center
+  gap: 4px
+  margin-left: auto
+
+.completedBadge
+  font-size: 12px
+  
+.reviewBadge
+  font-size: 10px
+  background: #3b82f6
+  color: white
+  padding: 2px 6px
+  border-radius: 10px
+  font-weight: 500
+
+.studyStatusText
+  color: #10b981
+  font-size: 11px
+  font-weight: 500
+  display: flex
+  align-items: center
+  gap: 4px
+
+.lastReviewDate
+  color: #6b7280
+  font-weight: 400
+
 // 选中题目预览样式
 .togglePreviewButton
   color: #3b82f6
@@ -601,16 +645,29 @@
 .filterSelect
   min-width: 140px
 
+.statsArea
+  display: flex
+  flex-direction: column
+  gap: 8px
+  align-items: flex-end
+
 .selectedCount
-  color: #667eea
+  color: #3b82f6
   font-weight: 600
   font-size: 14px
-  padding: 8px 16px
-  background: rgba(102, 126, 234, 0.1)
-  border-radius: 20px
-  white-space: nowrap
 
-// 手动添加题目表单样式
+.studyStats
+  display: flex
+  align-items: center
+
+.studyStatsText
+  color: #6b7280
+  font-size: 12px
+  font-weight: 500
+  padding: 4px 12px
+  background: rgba(16, 185, 129, 0.1)
+  border-radius: 16px
+  white-space: nowrap
 .addForm
   margin-bottom: 24px
   padding: 24px

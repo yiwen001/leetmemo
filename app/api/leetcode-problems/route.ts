@@ -3,14 +3,60 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '../auth/[...nextauth]/route'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const problems = await prisma.leetCodeProblem.findMany({
-      orderBy: [
-        { difficulty: 'asc' },
-        { number: 'asc' }
-      ]
-    })
+    const { searchParams } = new URL(request.url)
+    const includeStudyStatus = searchParams.get('includeStudyStatus') === 'true'
+    
+    const session = await getServerSession(authOptions)
+    
+    let problems
+    
+    if (includeStudyStatus && session?.user?.id) {
+      // 获取题目和用户的学习状态
+      problems = await prisma.leetCodeProblem.findMany({
+        orderBy: [
+          { difficulty: 'asc' },
+          { number: 'asc' }
+        ],
+        include: {
+          studyRecords: {
+            where: {
+              userId: session.user.id
+            },
+            select: {
+              completed: true,
+              reviewCount: true,
+              lastReviewDate: true
+            }
+          }
+        }
+      })
+      
+      // 转换数据格式，添加学习状态
+      problems = problems.map(problem => ({
+        ...problem,
+        studyStatus: problem.studyRecords.length > 0 ? {
+          hasStudied: true,
+          reviewCount: problem.studyRecords[0].reviewCount,
+          lastReviewDate: problem.studyRecords[0].lastReviewDate,
+          completed: problem.studyRecords[0].completed
+        } : {
+          hasStudied: false,
+          reviewCount: 0,
+          completed: false
+        },
+        studyRecords: undefined // 移除原始数据
+      }))
+    } else {
+      // 只获取题目基本信息
+      problems = await prisma.leetCodeProblem.findMany({
+        orderBy: [
+          { difficulty: 'asc' },
+          { number: 'asc' }
+        ]
+      })
+    }
 
     return NextResponse.json({
       success: true,

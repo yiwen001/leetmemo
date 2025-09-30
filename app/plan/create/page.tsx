@@ -98,6 +98,13 @@ interface LeetCodeProblem {
   category: string
   tags: string[]
   slug: string
+  // 学习状态信息
+  studyStatus?: {
+    hasStudied: boolean
+    reviewCount: number
+    lastReviewDate?: string
+    completed: boolean
+  }
 }
 
 export default function CreatePlanPage() {
@@ -117,6 +124,7 @@ export default function CreatePlanPage() {
   const [problemsLoading, setProblemsLoading] = useState(false)
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all')
   const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [filterStudyStatus, setFilterStudyStatus] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState<string>('')
   
   // 预览相关状态
@@ -154,7 +162,8 @@ export default function CreatePlanPage() {
   const fetchProblems = async () => {
     setProblemsLoading(true)
     try {
-      const response = await fetch('/api/leetcode-problems')
+      // 获取题库数据，包含学习状态
+      const response = await fetch('/api/leetcode-problems?includeStudyStatus=true')
       const result = await response.json()
       if (result.success) {
         setProblems(result.problems)
@@ -436,17 +445,23 @@ export default function CreatePlanPage() {
     }
   }
 
-  // 过滤题目
+  // 筛选题目
   const filteredProblems = problems.filter(problem => {
-    const matchesSearch = !searchQuery || 
+    const matchesSearch = searchQuery === '' || 
     problem.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    problem.titleCn.includes(searchQuery) ||
-    (problem.number && problem.number.toString().includes(searchQuery))
+    problem.titleCn.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (problem.number &&problem.number.toString().includes(searchQuery))
     
     const matchesDifficulty = filterDifficulty === 'all' || problem.difficulty === filterDifficulty
-    const matchesCategory = filterCategory === 'all' || problem.category === filterCategory
+    const matchesCategory = filterCategory === 'all' ||problem.category === filterCategory
     
-    return matchesSearch && matchesDifficulty && matchesCategory
+    const matchesStudyStatus = filterStudyStatus === 'all' || 
+      (filterStudyStatus === 'studied' && problem.studyStatus?.hasStudied) ||
+      (filterStudyStatus === 'unstudied' && !problem.studyStatus?.hasStudied) ||
+      (filterStudyStatus === 'completed' &&problem.studyStatus?.completed) ||
+      (filterStudyStatus === 'uncompleted' &&problem.studyStatus?.hasStudied && !problem.studyStatus?.completed)
+    
+    return matchesSearch && matchesDifficulty && matchesCategory && matchesStudyStatus
   })
 
   const categories = [...new Set(problems.map(p => p.category))]
@@ -598,8 +613,34 @@ export default function CreatePlanPage() {
                 ))}
               </Select>
 
-              <div className={styles.selectedCount}>
-                已选择 {selectedProblems.length} 道题目
+              <Select
+                value={filterStudyStatus}
+                onChange={setFilterStudyStatus}
+                className={styles.filterSelect}
+                placeholder="学习状态"
+              >
+                <Option value="all">全部状态</Option>
+                <Option value="unstudied">未学习</Option>
+                <Option value="studied">已学习</Option>
+                <Option value="uncompleted">学习中</Option>
+                <Option value="completed">已掌握</Option>
+              </Select>
+
+              <div className={styles.statsArea}>
+                <div className={styles.selectedCount}>
+                  已选择 {selectedProblems.length} 道题目
+                </div>
+                <div className={styles.studyStats}>
+                  {(() => {
+                    const studiedCount = filteredProblems.filter(p => p.studyStatus?.hasStudied).length
+                    const completedCount = filteredProblems.filter(p => p.studyStatus?.completed).length
+                    return (
+                      <span className={styles.studyStatsText}>
+                        📚 已学习: {studiedCount} | ✅ 已掌握: {completedCount}
+                      </span>
+                    )
+                  })()}
+                </div>
               </div>
             </div>
 
@@ -693,7 +734,7 @@ export default function CreatePlanPage() {
                   {filteredProblems.map(problem => (
                     <div 
                       key={problem.id} 
-                      className={`${styles.problemItem} ${selectedProblems.includes(problem.slug) ? styles.selected : ''}`}
+                      className={`${styles.problemItem} ${selectedProblems.includes(problem.slug) ? styles.selected : ''} ${problem.studyStatus?.hasStudied ? styles.studied : ''}`}
                       onClick={() => toggleProblemSelection(problem.slug)}
                     >
                       <div className={styles.problemCheckbox}>
@@ -710,9 +751,33 @@ export default function CreatePlanPage() {
                             {problem.difficulty === 'easy' ? '简单' : 
                              problem.difficulty === 'medium' ? '中等' : '困难'}
                           </span>
+                          {/* 学习状态标记 */}
+                          {problem.studyStatus?.hasStudied && (
+                            <div className={styles.studyStatusBadges}>
+                              {problem.studyStatus.completed && (
+                                <span className={styles.completedBadge} title="已完成">✅</span>
+                              )}
+                              {problem.studyStatus.reviewCount > 0 && (
+                                <span className={styles.reviewBadge} title={`已复习 ${problem.studyStatus.reviewCount} 次`}>
+                                  🔄{problem.studyStatus.reviewCount}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                         <div className={styles.problemMeta}>
                           <span className={styles.problemCategory}>{getCategoryDisplayName(problem.category)}</span>
+                          {/* 学习状态文字提示 */}
+                          {problem.studyStatus?.hasStudied && (
+                            <span className={styles.studyStatusText}>
+                              {problem.studyStatus.completed ? '已掌握' : '已学习'}
+                              {problem.studyStatus.lastReviewDate && (
+                                <span className={styles.lastReviewDate}>
+                                  · {new Date(problem.studyStatus.lastReviewDate).toLocaleDateString('zh-CN')}
+                                </span>
+                              )}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
