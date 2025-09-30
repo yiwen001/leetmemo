@@ -119,22 +119,32 @@
     background: #7c3aed
     border-color: #7c3aed
 
-// 批量操作按钮样式
-.batchActions
+// 题库操作按钮样式
+.problemsActions
   display: flex
   align-items: center
   gap: 8px
-  margin-top: 16px
+  margin-bottom: 16px
   padding: 12px 16px
   background: #f8fafc
   border-radius: 8px
   border: 1px solid #e2e8f0
 
-.batchActionsLabel
+.problemsActionsLabel
   font-size: 14px
   font-weight: 500
   color: #374151
   margin-right: 8px
+
+.selectAllButton
+  background: #10b981
+  border-color: #10b981
+  color: white
+  font-size: 12px
+  
+  &:hover
+    background: #059669
+    border-color: #059669
 
 .clearAllButton
   background: #ef4444
@@ -146,17 +156,7 @@
     background: #dc2626
     border-color: #dc2626
 
-.selectPageButton
-  background: #10b981
-  border-color: #10b981
-  color: white
-  font-size: 12px
-  
-  &:hover
-    background: #059669
-    border-color: #059669
-
-.unselectPageButton
+.clearCurrentPageButton
   background: #6b7280
   border-color: #6b7280
   color: white
@@ -165,6 +165,28 @@
   &:hover
     background: #4b5563
     border-color: #4b5563
+
+// 批量导入清空按钮
+.clearInputButton
+  background: #f59e0b
+  border-color: #f59e0b
+  color: white
+  font-size: 12px
+  
+  &:hover
+    background: #d97706
+    border-color: #d97706
+
+// 取消选中导入题目按钮
+.unselectImportedButton
+  background: #ef4444
+  border-color: #ef4444
+  color: white
+  font-size: 12px
+  
+  &:hover
+    background: #dc2626
+    border-color: #dc2626
 
 .defaultPreview
   margin-top: 24px
@@ -378,32 +400,52 @@
   display: grid
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr))
   gap: 12px
+  max-height: 600px
+  overflow-y: auto
+  padding-right: 8px
+  
+  // 自定义滚动条样式
+  &::-webkit-scrollbar
+    width: 6px
+    
+  &::-webkit-scrollbar-track
+    background: #f1f5f9
+    border-radius: 3px
+    
+  &::-webkit-scrollbar-thumb
+    background: #cbd5e1
+    border-radius: 3px
+    
+    &:hover
+      background: #94a3b8
 
 .problemItem
   display: flex
-  align-items: center
-  padding: 12px 16px
+  align-items: flex-start
+  gap: 12px
+  padding: 16px
+  background: white
   border: 1px solid #e2e8f0
   border-radius: 8px
-  transition: all 0.2s ease
-  background: white
   cursor: pointer
-  min-height: 60px
+  transition: all 0.2s ease
+  position: relative
+  max-height: 120px
+  overflow: hidden
 
   &:hover
-    background: #f8fafc
-    border-color: #cbd5e1
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1)
+    border-color: #3b82f6
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1)
+    overflow-y: auto
 
   &.selected
-    background: #eff6ff
     border-color: #3b82f6
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2)
+    background: #f0f9ff
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15)
 
 .problemCheckbox
   margin-right: 12px
   display: flex
-  align-items: center
 
 .checkedIcon
   color: #3b82f6
@@ -418,6 +460,7 @@
 .problemInfo
   flex: 1
   min-width: 0
+  overflow: hidden
 
 .problemHeader
   display: flex
@@ -433,13 +476,18 @@
 
 .problemTitle
   font-weight: 500
-  color: #1e293b
+  color: #1f2937
   flex: 1
-  font-size: 14px
-  white-space: nowrap
   overflow: hidden
   text-overflow: ellipsis
+  white-space: nowrap
+  max-width: 200px
 
+  // 在hover时显示完整内容
+  .problemItem:hover &
+    white-space: normal
+    overflow: visible
+    text-overflow: unset
 .difficulty
   padding: 2px 8px
   border-radius: 12px
@@ -508,6 +556,10 @@
   display: flex
   align-items: center
   gap: 4px
+  overflow: hidden
+  text-overflow: ellipsis
+  white-space: nowrap
+  max-width: 150px
 
 .lastReviewDate
   color: #6b7280
@@ -710,10 +762,25 @@
   gap: 8px
   align-items: flex-end
 
+.selectedCountArea
+  display: flex
+  align-items: center
+  gap: 8px
+
 .selectedCount
   color: #3b82f6
   font-weight: 600
   font-size: 14px
+
+.clearSelectedButton
+  background: #ef4444
+  border-color: #ef4444
+  color: white
+  font-size: 12px
+  
+  &:hover
+    background: #dc2626
+    border-color: #dc2626
 
 .studyStats
   display: flex

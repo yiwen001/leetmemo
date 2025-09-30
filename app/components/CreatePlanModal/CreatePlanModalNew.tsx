@@ -256,14 +256,13 @@ export default function CreatePlanModalNew({ open, onCancel, onSubmit, loading }
         if (result.importedSlugs && result.importedSlugs.length > 0) {
           setSelectedProblems(prev => {
             const newSelected = Array.from(new Set([...prev, ...result.importedSlugs]))
-            message.info(`已自动选中 ${result.importedSlugs.length} 道导入的题目`)
+            message.info(`已自动选中 ${result.importedSlugs.length} 道导入的题目，可使用"取消选中"按钮取消选择`)
             return newSelected
           })
         }
         
-        // 重置表单
+        // 清空输入框但保持表单打开，方便用户使用"取消选中"功能
         setBatchImportData('')
-        setShowBatchImport(false)
       } else {
         message.error(result.error || '批量导入失败')
       }
@@ -442,14 +441,94 @@ export default function CreatePlanModalNew({ open, onCancel, onSubmit, loading }
                   {showAddForm ? '取消添加' : '手动添加题目'}
                 </Button>
                 <Button 
-                  type="primary" 
-                  ghost
-                  onClick={() => setShowPreview(!showPreview)}
-                  disabled={selectedProblems.length === 0}
+                  onClick={() => setShowBatchImport(true)}
+                  style={{ marginRight: 8, background: '#8b5cf6', borderColor: '#8b5cf6', color: 'white' }}
                 >
-                  预览选中题目 ({selectedProblems.length})
+                  批量导入题目
+                </Button>
+                <Button 
+                  onClick={() => {
+                    const currentPageIds = filteredProblems.map(p => p.id)
+                    setSelectedProblems(prev => Array.from(new Set([...prev, ...currentPageIds])))
+                    message.success(`已选中当前页面的 ${currentPageIds.length} 道题目`)
+                  }}
+                  style={{ marginRight: 8, background: '#10b981', borderColor: '#10b981', color: 'white' }}
+                >
+                  全选当前页
+                </Button>
+                <Button 
+                  type="primary" 
+                  onClick={() => setShowPreview(!showPreview)}
+                  style={{ marginRight: 8 }}
+                >
+                  {showPreview ? '隐藏预览' : '预览选中题目'}
                 </Button>
               </div>
+
+              {/* 批量导入题目表单 */}
+              {showBatchImport && (
+                <div style={{
+                  marginBottom: '16px',
+                  padding: '16px',
+                  border: '2px solid #8b5cf6',
+                  borderRadius: '6px',
+                  backgroundColor: '#f3f0ff'
+                }}>
+                  <h4 style={{ marginBottom: '12px', color: '#8b5cf6' }}>批量导入题目</h4>
+                  <div style={{ marginBottom: '12px', fontSize: '14px', color: '#7c3aed' }}>
+                    💡 支持JSON格式批量导入，请按照模板格式准备数据
+                  </div>
+                  
+                  <div style={{ marginBottom: '12px' }}>
+                    <Button 
+                      size="small"
+                      onClick={generateSampleData}
+                      style={{ background: '#f59e0b', borderColor: '#f59e0b', color: 'white', marginBottom: '8px' }}
+                    >
+                      生成示例数据
+                    </Button>
+                    <Input.TextArea
+                      placeholder="请粘贴JSON格式的题目数据..."
+                      value={batchImportData}
+                      onChange={(e) => setBatchImportData(e.target.value)}
+                      rows={8}
+                      disabled={batchImporting}
+                      style={{ fontFamily: 'Monaco, Menlo, monospace', fontSize: '13px' }}
+                    />
+                  </div>
+                  
+                  <div style={{ textAlign: 'right' }}>
+                    <Button 
+                      onClick={() => {
+                        setBatchImportData('')
+                        setShowBatchImport(false)
+                      }}
+                      disabled={batchImporting}
+                      style={{ marginRight: 8 }}
+                    >
+                      取消
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        setBatchImportData('')
+                        message.success('已清空输入内容')
+                      }}
+                      disabled={batchImporting || !batchImportData.trim()}
+                      style={{ marginRight: 8, background: '#f59e0b', borderColor: '#f59e0b', color: 'white' }}
+                    >
+                      清空输入
+                    </Button>
+                    <Button 
+                      type="primary" 
+                      onClick={handleBatchImport}
+                      loading={batchImporting}
+                      disabled={!batchImportData.trim()}
+                    >
+                      {batchImporting ? '导入中...' : '开始导入'}
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               {/* 手动添加题目表单 */}
               {showAddForm && (
@@ -598,6 +677,7 @@ export default function CreatePlanModalNew({ open, onCancel, onSubmit, loading }
                 </Select>
               </div>
 
+
               {/* 题目列表 */}
               <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #d9d9d9', borderRadius: '6px', padding: '12px' }}>
                 {problemsLoading ? (
@@ -640,8 +720,11 @@ export default function CreatePlanModalNew({ open, onCancel, onSubmit, loading }
                   </div>
                 )}
               </div>
-              <div style={{ marginTop: '8px', color: '#666' }}>
-                已选择 {selectedProblems.length} 道题目
+              <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ color: '#3b82f6', fontWeight: '600', fontSize: '14px' }}>
+                  已选择 {selectedProblems.length} 道题目
+                </span>
+              
               </div>
             </div>
           </div>

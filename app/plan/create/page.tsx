@@ -436,14 +436,13 @@ export default function CreatePlanPage() {
         if (result.importedSlugs && result.importedSlugs.length > 0) {
           setSelectedProblems(prev => {
             const newSelected = Array.from(new Set([...prev, ...result.importedSlugs]))
-            message.info(`已自动选中 ${result.importedSlugs.length} 道导入的题目`)
+            message.info(`已自动选中 ${result.importedSlugs.length} 道导入的题目，可使用"取消选中"按钮取消选择`)
             return newSelected
           })
         }
         
-        // 重置表单
+        // 清空输入框但保持表单打开，方便用户使用"取消选中"功能
         setBatchImportData('')
-        setShowBatchImport(false)
       } else {
         message.error(result.error || '批量导入失败')
       }
@@ -726,48 +725,18 @@ export default function CreatePlanPage() {
                 >
                   批量导入题目
                 </Button>
+                <Button 
+                  onClick={() => {
+                    const currentPageSlugs = filteredProblems.map(p => p.slug)
+                    setSelectedProblems(prev => Array.from(new Set([...prev, ...currentPageSlugs])))
+                    message.success(`已选中当前页面的 ${currentPageSlugs.length} 道题目`)
+                  }}
+                  className={styles.selectAllButton}
+                >
+                  全选当前页
+                </Button>
               </div>
 
-              {/* 批量操作按钮 */}
-              {selectedProblems.length > 0 && (
-                <div className={styles.batchActions}>
-                  <span className={styles.batchActionsLabel}>
-                    批量操作:
-                  </span>
-                  <Button 
-                    size="small"
-                    onClick={() => {
-                      setSelectedProblems([])
-                      message.success('已取消选中所有题目')
-                    }}
-                    className={styles.clearAllButton}
-                  >
-                    取消全选
-                  </Button>
-                  <Button 
-                    size="small"
-                    onClick={() => {
-                      const currentPageSlugs = filteredProblems.map(p => p.slug)
-                      setSelectedProblems(prev => Array.from(new Set([...prev, ...currentPageSlugs])))
-                      message.success(`已选中当前页面的 ${currentPageSlugs.length} 道题目`)
-                    }}
-                    className={styles.selectPageButton}
-                  >
-                    选中当前页
-                  </Button>
-                  <Button 
-                    size="small"
-                    onClick={() => {
-                      const currentPageSlugs = filteredProblems.map(p => p.slug)
-                      setSelectedProblems(prev => prev.filter(slug => !currentPageSlugs.includes(slug)))
-                      message.success('已取消选中当前页面的题目')
-                    }}
-                    className={styles.unselectPageButton}
-                  >
-                    取消当前页
-                  </Button>
-                </div>
-              )}
             </div>
 
             {/* 筛选器 */}
@@ -820,8 +789,22 @@ export default function CreatePlanPage() {
               </Select>
 
               <div className={styles.statsArea}>
-                <div className={styles.selectedCount}>
-                  已选择 {selectedProblems.length} 道题目
+                <div className={styles.selectedCountArea}>
+                  <div className={styles.selectedCount}>
+                    已选择 {selectedProblems.length} 道题目
+                  </div>
+                  {selectedProblems.length > 0 && (
+                    <Button 
+                      size="small"
+                      onClick={() => {
+                        setSelectedProblems([])
+                        message.success('已取消选中所有题目')
+                      }}
+                      className={styles.clearSelectedButton}
+                    >
+                      取消选中
+                    </Button>
+                  )}
                 </div>
                 <div className={styles.studyStats}>
                   {(() => {
@@ -917,6 +900,16 @@ export default function CreatePlanPage() {
                     取消
                   </Button>
                   <Button 
+                    onClick={() => {
+                      setBatchImportData('')
+                      message.success('已清空输入内容')
+                    }}
+                    disabled={batchImporting || !batchImportData.trim()}
+                    className={styles.clearInputButton}
+                  >
+                    清空输入
+                  </Button>
+                  <Button 
                     type="primary" 
                     onClick={handleBatchImport}
                     loading={batchImporting}
@@ -1007,7 +1000,7 @@ export default function CreatePlanPage() {
             )}
 
             {/* 题目列表 */}
-            <div className={styles.problemList}>
+            <div className={styles.problemsList}>
               {problemsLoading ? (
                 <div className={styles.loading}>
                   <Spin />
