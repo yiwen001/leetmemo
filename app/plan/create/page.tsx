@@ -140,15 +140,112 @@ export default function CreatePlanPage() {
     return null
   }
 
-  // 处理URL变化
+  // 防抖函数
+  const debounce = (func: Function, wait: number) => {
+    let timeout: NodeJS.Timeout
+    return function executedFunction(...args: any[]) {
+      const later = () => {
+        clearTimeout(timeout)
+        func(...args)
+      }
+      clearTimeout(timeout)
+      timeout = setTimeout(later, wait)
+    }
+  }
+
+  // 实际的解析函数
+  const parseUrlInfo = async (url: string) => {
+    // 显示加载状态
+    setAddingProblem(true)
+    
+    try {
+      // 调用解析API
+      const response = await fetch(`/api/leetcode-problems/parse?url=${encodeURIComponent(url)}`)
+      const result = await response.json()
+
+      if (result.success) {
+        const { data, source } = result
+        
+        setNewProblem(prev => ({
+          ...prev,
+          number: data.number ? data.number.toString() : '',
+          title: data.title || '',
+          titleCn: data.titleCn || '',
+          difficulty: data.difficulty || 'medium',
+          category: data.category || ''
+        }))
+
+        // 根据数据源显示不同的提示
+        if (source === 'database') {
+          message.success('从题库中找到题目信息')
+        } else if (source === 'leetcode_api') {
+          message.success('从LeetCode获取题目信息成功')
+        } else {
+          message.info('已解析URL，请确认题目信息')
+        }
+      } else {
+        // 解析失败，回退到基本URL解析
+        const parsedNumber = parseNumber(url)
+        const parsedTitle = parseTitle(url)
+        
+        setNewProblem(prev => ({
+          ...prev,
+          number: parsedNumber ? parsedNumber.toString() : '',
+          title: parsedTitle || '',
+          titleCn: '',
+          difficulty: 'medium',
+          category: ''
+        }))
+        
+        message.warning('自动解析失败，请手动填写题目信息')
+      }
+    } catch (error) {
+      console.error('解析题目信息失败:', error)
+      
+      // 出错时回退到基本解析
+      const parsedNumber = parseNumber(url)
+      const parsedTitle = parseTitle(url)
+      
+      setNewProblem(prev => ({
+        ...prev,
+        number: parsedNumber ? parsedNumber.toString() : '',
+        title: parsedTitle || '',
+        titleCn: '',
+        difficulty: 'medium',
+        category: ''
+      }))
+      
+      message.warning('网络错误，已进行基本解析')
+    } finally {
+      setAddingProblem(false)
+    }
+  }
+
+  // 防抖的解析函数
+  const debouncedParseUrl = debounce(parseUrlInfo, 1000)
+
+  // 处理URL变化 - 增强版自动解析
   const handleUrlChange = (url: string) => {
-    const parsedNumber = url ? parseNumber(url) : null
     setNewProblem(prev => ({
       ...prev,
       url,
-      title: url ? parseTitle(url) : prev.title,
-      number: parsedNumber ? parsedNumber.toString() : prev.number
     }))
+
+    // 如果URL为空，清空其他字段
+    if (!url.trim()) {
+      setNewProblem(prev => ({
+        ...prev,
+        number: '',
+        title: '',
+        titleCn: '',
+        difficulty: 'medium',
+        category: ''
+      }))
+      return
+    }
+
+    // 防抖调用解析函数
+    debouncedParseUrl(url)
   }
 
   // 手动添加题目
@@ -432,6 +529,9 @@ export default function CreatePlanPage() {
             {showAddForm && (
               <div className={styles.addForm}>
                 <h4 className={styles.addFormTitle}>添加新题目</h4>
+                <div className={styles.addFormHint}>
+                  💡 粘贴LeetCode题目链接，系统将自动解析题目编号、标题、难度和分类
+                </div>
                 <div className={styles.addFormContent}>
                   <div className={styles.addFormRow}>
                     <Input
@@ -439,6 +539,7 @@ export default function CreatePlanPage() {
                       value={newProblem.url}
                       onChange={(e) => handleUrlChange(e.target.value)}
                       className={styles.addFormInput}
+                      suffix={addingProblem ? <span style={{ color: '#1890ff' }}>解析中...</span> : null}
                     />
                   </div>
                   <div className={styles.addFormRow}>
@@ -447,11 +548,14 @@ export default function CreatePlanPage() {
                       value={newProblem.number}
                       onChange={(e) => setNewProblem({...newProblem, number: e.target.value})}
                       className={styles.addFormInputSmall}
+                      disabled={addingProblem}
                     />
                     <Select
                       value={newProblem.difficulty}
                       onChange={(value) => setNewProblem({...newProblem, difficulty: value})}
                       className={styles.addFormSelect}
+                      disabled={addingProblem}
+                      placeholder="难度 (自动解析)"
                     >
                       <Option value="easy">简单</Option>
                       <Option value="medium">中等</Option>
@@ -464,22 +568,25 @@ export default function CreatePlanPage() {
                       value={newProblem.title}
                       onChange={(e) => setNewProblem({...newProblem, title: e.target.value})}
                       className={styles.addFormInput}
+                      disabled={addingProblem}
                     />
                   </div>
                   <div className={styles.addFormRow}>
                     <Input
-                      placeholder="题目标题 (中文，可选)"
+                      placeholder="中文标题 (可选，手动填写)"
                       value={newProblem.titleCn}
                       onChange={(e) => setNewProblem({...newProblem, titleCn: e.target.value})}
                       className={styles.addFormInput}
+                      disabled={addingProblem}
                     />
                   </div>
                   <div className={styles.addFormRow}>
                     <Input
-                      placeholder="分类 (如: Array)"
+                      placeholder="分类 (自动解析，如: Array)"
                       value={newProblem.category}
                       onChange={(e) => setNewProblem({...newProblem, category: e.target.value})}
                       className={styles.addFormInput}
+                      disabled={addingProblem}
                     />
                   </div>
                   <div className={styles.addFormActions}>
