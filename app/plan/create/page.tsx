@@ -11,6 +11,84 @@ import { DEFAULT_PLAN_CONFIG } from '@/lib/default-study-plan'
 
 const { Option } = Select
 
+// 分类中英文映射
+const CATEGORY_TRANSLATIONS: { [key: string]: string } = {
+  'Array': '数组',
+  'String': '字符串',
+  'Hash Table': '哈希表',
+  'Dynamic Programming': '动态规划',
+  'Math': '数学',
+  'Two Pointers': '双指针',
+  'Greedy': '贪心算法',
+  'Sorting': '排序',
+  'Bit Manipulation': '位运算',
+  'Tree': '树',
+  'Depth-First Search': '深度优先搜索',
+  'Binary Search': '二分查找',
+  'Matrix': '矩阵',
+  'Breadth-First Search': '广度优先搜索',
+  'Sliding Window': '滑动窗口',
+  'Recursion': '递归',
+  'Binary Tree': '二叉树',
+  'Heap (Priority Queue)': '堆（优先队列）',
+  'Stack': '栈',
+  'Graph': '图',
+  'Design': '设计',
+  'Backtracking': '回溯',
+  'Simulation': '模拟',
+  'Counting': '计数',
+  'Linked List': '链表',
+  'Prefix Sum': '前缀和',
+  'Binary Search Tree': '二叉搜索树',
+  'Ordered Set': '有序集合',
+  'Queue': '队列',
+  'Memoization': '记忆化搜索',
+  'Geometry': '几何',
+  'Topological Sort': '拓扑排序',
+  'Union Find': '并查集',
+  'Trie': '字典树',
+  'Divide and Conquer': '分治',
+  'Bitmask': '状态压缩',
+  'Monotonic Stack': '单调栈',
+  'Database': '数据库',
+  'Interactive': '交互',
+  'Data Stream': '数据流',
+  'Rolling Hash': '滚动哈希',
+  'Shortest Path': '最短路径',
+  'Game Theory': '博弈论',
+  'Combinatorics': '组合数学',
+  'Randomized': '随机化',
+  'Monotonic Queue': '单调队列',
+  'Merge Sort': '归并排序',
+  'Iterator': '迭代器',
+  'Concurrency': '并发',
+  'Doubly-Linked List': '双向链表',
+  'Probability and Statistics': '概率与统计',
+  'Quickselect': '快速选择',
+  'Bucket Sort': '桶排序',
+  'Suffix Array': '后缀数组',
+  'Minimum Spanning Tree': '最小生成树',
+  'Eulerian Circuit': '欧拉回路',
+  'Line Sweep': '扫描线',
+  'Hash Function': '哈希函数',
+  'Number Theory': '数论',
+  'Bipartite Graph': '二分图',
+  'Strongly Connected Component': '强连通分量',
+  'Rejection Sampling': '拒绝采样',
+  'Reservoir Sampling': '蓄水池抽样'
+}
+
+// 获取分类的中文名称
+const getCategoryDisplayName = (category: string): string => {
+  return CATEGORY_TRANSLATIONS[category] || category
+}
+
+// 反向查找：从中文获取英文分类名
+const getCategoryEnglishName = (chineseName: string): string => {
+  const entry = Object.entries(CATEGORY_TRANSLATIONS).find(([_, chinese]) => chinese === chineseName)
+  return entry ? entry[0] : chineseName
+}
+
 interface LeetCodeProblem {
   id: string
   number: number
@@ -52,7 +130,7 @@ export default function CreatePlanPage() {
     title: '',
     titleCn: '',
     difficulty: 'medium',
-    category: 'Array',
+    category: getCategoryDisplayName('Array'),
     number: ''
   })
 
@@ -172,7 +250,7 @@ export default function CreatePlanPage() {
           title: data.title || '',
           titleCn: data.titleCn || '',
           difficulty: data.difficulty || 'medium',
-          category: data.category || ''
+          category: getCategoryDisplayName(data.category || '')
         }))
 
         // 根据数据源显示不同的提示
@@ -194,7 +272,7 @@ export default function CreatePlanPage() {
           title: parsedTitle || '',
           titleCn: '',
           difficulty: 'medium',
-          category: ''
+          category: getCategoryDisplayName('Array')
         }))
         
         message.warning('自动解析失败，请手动填写题目信息')
@@ -212,7 +290,7 @@ export default function CreatePlanPage() {
         title: parsedTitle || '',
         titleCn: '',
         difficulty: 'medium',
-        category: ''
+        category: getCategoryDisplayName('Array')
       }))
       
       message.warning('网络错误，已进行基本解析')
@@ -239,7 +317,7 @@ export default function CreatePlanPage() {
         title: '',
         titleCn: '',
         difficulty: 'medium',
-        category: ''
+        category: getCategoryDisplayName('Array')
       }))
       return
     }
@@ -268,9 +346,9 @@ export default function CreatePlanPage() {
           title: newProblem.title || parseTitle(newProblem.url),
           titleCn: newProblem.titleCn || newProblem.title || parseTitle(newProblem.url),
           difficulty: newProblem.difficulty,
-          category: newProblem.category,
+          category: getCategoryEnglishName(newProblem.category),
           number: newProblem.number ? parseInt(newProblem.number) : null,
-          tags: [newProblem.category]
+          tags: [getCategoryEnglishName(newProblem.category)]
         })
       })
 
@@ -285,7 +363,7 @@ export default function CreatePlanPage() {
           title: '',
           titleCn: '',
           difficulty: 'medium',
-          category: 'Array',
+          category: getCategoryDisplayName('Array'),
           number: ''
         })
         setShowAddForm(false)
@@ -516,7 +594,7 @@ export default function CreatePlanPage() {
               >
                 <Option value="all">全部分类</Option>
                 {categories.map(category => (
-                  <Option key={category} value={category}>{category}</Option>
+                  <Option key={category} value={category}>{getCategoryDisplayName(category)}</Option>
                 ))}
               </Select>
 
@@ -582,7 +660,7 @@ export default function CreatePlanPage() {
                   </div>
                   <div className={styles.addFormRow}>
                     <Input
-                      placeholder="分类 (自动解析，如: Array)"
+                      placeholder="分类 (自动解析，如: 数组、字符串)"
                       value={newProblem.category}
                       onChange={(e) => setNewProblem({...newProblem, category: e.target.value})}
                       className={styles.addFormInput}
@@ -634,7 +712,7 @@ export default function CreatePlanPage() {
                           </span>
                         </div>
                         <div className={styles.problemMeta}>
-                          <span className={styles.problemCategory}>{problem.category}</span>
+                          <span className={styles.problemCategory}>{getCategoryDisplayName(problem.category)}</span>
                         </div>
                       </div>
                     </div>

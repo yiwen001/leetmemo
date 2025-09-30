@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Trash2, Edit2, Search, FileText, Calendar, RefreshCw, Loader, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Trash2, Edit2, Search, FileText, Calendar, RefreshCw, Loader, AlertTriangle, Download } from 'lucide-react'
 import Link from 'next/link'
 import { Modal, Input, message, Popconfirm, Select } from 'antd'
 import ReactMarkdown from 'react-markdown'
@@ -128,6 +128,122 @@ export default function ProblemsPage() {
     message.info('历史记录不支持删除，如需管理题目请在学习计划中操作');
   };
 
+  // 导出笔记为Markdown
+  const exportNotesToMarkdown = () => {
+    // 过滤出有笔记的题目
+    const problemsWithNotes = problems.filter(problem => problem.notes && problem.notes.trim() !== '');
+    
+    if (problemsWithNotes.length === 0) {
+      message.warning('没有找到包含笔记的题目');
+      return;
+    }
+
+    // 统计信息
+    const stats = {
+      total: problems.length,
+      withNotes: problemsWithNotes.length,
+      completed: problems.filter(p => p.completed).length,
+      totalReviews: problems.reduce((sum, p) => sum + p.reviewCount, 0),
+      totalTimeSpent: problems.reduce((sum, p) => sum + (p.timeSpent || 0), 0)
+    };
+
+    // 生成Markdown内容
+    let markdownContent = `# LeetCode 学习笔记\n\n`;
+    markdownContent += `## 📊 学习统计\n\n`;
+    markdownContent += `| 统计项目 | 数值 |\n`;
+    markdownContent += `|---------|------|\n`;
+    markdownContent += `| 导出时间 | ${new Date().toLocaleString('zh-CN')} |\n`;
+    markdownContent += `| 总题目数 | ${stats.total} |\n`;
+    markdownContent += `| 有笔记题目 | ${stats.withNotes} |\n`;
+    markdownContent += `| 已完成题目 | ${stats.completed} |\n`;
+    markdownContent += `| 总复习次数 | ${stats.totalReviews} |\n`;
+    markdownContent += `| 总学习时长 | ${Math.round(stats.totalTimeSpent / 60)} 分钟 |\n\n`;
+    markdownContent += `---\n\n`;
+
+    // 生成目录
+    markdownContent += `## 📚 题目目录\n\n`;
+    
+    // 按难度分组
+    const groupedByDifficulty = {
+      easy: problemsWithNotes.filter(p => p.difficulty === 'easy'),
+      medium: problemsWithNotes.filter(p => p.difficulty === 'medium'),
+      hard: problemsWithNotes.filter(p => p.difficulty === 'hard')
+    };
+
+    const difficultyNames = {
+      easy: '简单',
+      medium: '中等', 
+      hard: '困难'
+    };
+
+    // 先生成目录
+    Object.entries(groupedByDifficulty).forEach(([difficulty, problemList]) => {
+      if (problemList.length > 0) {
+        markdownContent += `### ${difficultyNames[difficulty as keyof typeof difficultyNames]} (${problemList.length}题)\n\n`;
+        problemList.forEach((problem, index) => {
+          markdownContent += `${index + 1}. [${problem.number}. ${problem.title}](#${index + 1}-${problem.number}-${problem.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')})\n`;
+        });
+        markdownContent += `\n`;
+      }
+    });
+
+    markdownContent += `---\n\n`;
+
+    // 然后生成详细内容
+    Object.entries(groupedByDifficulty).forEach(([difficulty, problemList]) => {
+      if (problemList.length > 0) {
+        markdownContent += `## ${difficultyNames[difficulty as keyof typeof difficultyNames]} (${problemList.length}题)\n\n`;
+        
+        problemList.forEach((problem, index) => {
+          markdownContent += `### ${index + 1}. [${problem.number}. ${problem.title}](${problem.url})\n\n`;
+          
+          // 基本信息表格
+          markdownContent += `| 属性 | 值 |\n`;
+          markdownContent += `|------|----|\n`;
+          markdownContent += `| 🎯 难度 | ${difficultyNames[problem.difficulty as keyof typeof difficultyNames]} |\n`;
+          markdownContent += `| 🔄 复习次数 | ${problem.reviewCount} |\n`;
+          markdownContent += `| 📅 最后复习 | ${new Date(problem.lastReviewDate).toLocaleDateString('zh-CN')} |\n`;
+          markdownContent += `| ➕ 添加时间 | ${new Date(problem.addedDate).toLocaleDateString('zh-CN')} |\n`;
+          markdownContent += `| ✅ 完成状态 | ${problem.completed ? '已完成' : '未完成'} |\n`;
+          if (problem.timeSpent && problem.timeSpent > 0) {
+            markdownContent += `| ⏱️ 学习时长 | ${Math.round(problem.timeSpent / 60)} 分钟 |\n`;
+          }
+          if (problem.studyPlan) {
+            markdownContent += `| 📚 学习计划 | ${problem.studyPlan.status} |\n`;
+          }
+          markdownContent += `\n`;
+          
+          // 笔记内容
+          markdownContent += `#### 📝 笔记内容\n\n`;
+          markdownContent += `${problem.notes}\n\n`;
+          markdownContent += `---\n\n`;
+        });
+      }
+    });
+
+    // 添加页脚信息
+    markdownContent += `\n---\n\n`;
+    markdownContent += `## 📄 导出信息\n\n`;
+    markdownContent += `- **生成工具**: LeetMemo 学习管理系统\n`;
+    markdownContent += `- **导出时间**: ${new Date().toLocaleString('zh-CN')}\n`;
+    markdownContent += `- **文件格式**: Markdown (.md)\n`;
+    markdownContent += `- **包含内容**: ${problemsWithNotes.length} 道题目的学习笔记\n\n`;
+    markdownContent += `> 💡 **提示**: 此文件可以在任何支持 Markdown 的编辑器中打开，如 Typora、VS Code、Obsidian 等。\n`;
+
+    // 创建并下载文件
+    const blob = new Blob([markdownContent], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `leetcode-notes-${new Date().toISOString().split('T')[0]}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    message.success(`已导出 ${problemsWithNotes.length} 道题目的笔记到 Markdown 文件`);
+  };
+
   // 清空所有学习历史
   const handleClearAllHistory = async () => {
     try {
@@ -199,6 +315,14 @@ export default function ProblemsPage() {
                 ]}
               />
             </div>
+            <button
+              onClick={exportNotesToMarkdown}
+              className={styles.exportButton}
+              title="导出笔记为Markdown"
+            >
+              <Download size={16} />
+              导出笔记
+            </button>
             <Popconfirm
               title="清空学习历史"
               description={
