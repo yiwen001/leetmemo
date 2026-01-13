@@ -15,8 +15,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
     const sortBy = searchParams.get('sortBy') || 'newest'
-    const limit = parseInt(searchParams.get('limit') || '1000')
-    const offset = parseInt(searchParams.get('offset') || '0')
+    // 移除限制，显示所有题目
+    const limit = undefined
+    const offset = 0
 
     // 构建查询条件
     const whereClause: any = {
@@ -84,9 +85,8 @@ export async function GET(request: NextRequest) {
       include: {
         leetcodeProblem: true
       },
-      orderBy,
-      skip: offset,
-      take: limit
+      orderBy
+      // 移除skip和take参数，显示所有结果
     })
 
     // 获取总数
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
       difficulty: record.leetcodeProblem.difficulty,
       completed: record.completed,
       timeSpent: record.timeSpent,
-      category: record.leetcodeProblem.category || '未分类'
+      category: record.category || '未分类'
     }))
 
     return NextResponse.json({
@@ -232,7 +232,8 @@ export async function POST(request: NextRequest) {
           reviewCount: 0,
           completed: false,
           notes: '',
-          timeSpent: 0
+          timeSpent: 0,
+          category: category || '未分类'
         },
         include: {
           leetcodeProblem: true
@@ -269,14 +270,10 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: '缺少必要参数' }, { status: 400 })
     }
 
-    // 获取学习记录
     const studyRecord = await prisma.studyRecord.findFirst({
       where: {
         id: recordId,
         userId: session.user.id
-      },
-      include: {
-        leetcodeProblem: true
       }
     })
 
@@ -284,27 +281,12 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: '学习记录不存在' }, { status: 404 })
     }
 
-    // 更新题目分类
-    const updatedProblem = await prisma.leetcodeProblem.update({
-      where: {
-        id: studyRecord.problemId
-      },
-      data: {
-        category: category
-      }
-    })
-
-    // 更新学习记录
     const updatedRecord = await prisma.studyRecord.update({
       where: {
         id: recordId
       },
       data: {
-        leetcodeProblem: {
-          connect: {
-            id: updatedProblem.id
-          }
-        }
+        category: category
       },
       include: {
         leetcodeProblem: true
@@ -320,7 +302,7 @@ export async function PUT(request: NextRequest) {
     console.error('更新题目分类失败:', error)
     return NextResponse.json({
       success: false,
-      error: '更新失败'
+      error: error instanceof Error ? error.message : '更新失败'
     }, { status: 500 })
   }
 }

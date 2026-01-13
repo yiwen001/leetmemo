@@ -34,6 +34,7 @@ interface Category {
   id: string
   name: string
   count: number
+  problems?: Problem[]
   children?: Category[]
 }
 
@@ -64,10 +65,13 @@ export default function ProblemsPage() {
   })
   
   const [categories, setCategories] = useState<Category[]>([])
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['all']))
 
   const editorRef = useState<HTMLTextAreaElement | null>(null)
   const [splitPosition, setSplitPosition] = useState(50)
   const [isDragging, setIsDragging] = useState(false)
+  const [draggedProblem, setDraggedProblem] = useState<Problem | null>(null)
+  const [dragOverCategory, setDragOverCategory] = useState<string | null>(null)
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true)
@@ -138,7 +142,6 @@ export default function ProblemsPage() {
       if (data.success) {
         setProblems(data.problems)
         setTotal(data.total)
-        generateCategories(data.problems)
       } else {
         message.error('获取题目失败')
       }
@@ -150,45 +153,63 @@ export default function ProblemsPage() {
     }
   }
 
-  const generateCategories = (problems: Problem[]) => {
-    const categoryMap = new Map<string, number>()
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/categories')
+      const data = await response.json()
+      
+      if (data.success) {
+        setCategories(data.categories)
+      } else {
+        message.error('获取分类失败')
+      }
+    } catch (error) {
+      console.error('获取分类失败:', error)
+      message.error('获取分类失败')
+    }
+  }
+
+  const updateCategoryCounts = (userCategories: Category[]) => {
+    const categoryProblemsMap = new Map<string, Problem[]>()
     
     problems.forEach(problem => {
       const category = problem.category || '未分类'
-      categoryMap.set(category, (categoryMap.get(category) || 0) + 1)
+      if (!categoryProblemsMap.has(category)) {
+        categoryProblemsMap.set(category, [])
+      }
+      categoryProblemsMap.get(category)!.push(problem)
     })
     
-    const categoryList: Category[] = Array.from(categoryMap.entries()).map(([name, count]) => ({
-      id: name,
-      name,
-      count
+    const categoryList: Category[] = userCategories.map(cat => ({
+      id: cat.id,
+      name: cat.name,
+      count: categoryProblemsMap.get(cat.name)?.length || 0,
+      problems: categoryProblemsMap.get(cat.name) || []
     }))
-    
-    categoryList.sort((a, b) => b.count - a.count)
     
     setCategories(categoryList)
   }
 
   useEffect(() => {
     fetchProblems()
+    fetchCategories()
   }, [searchTerm, sortOption])
 
   useEffect(() => {
-    let filtered = problems
-    
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(p => p.category === selectedCategory)
-    }
-    
+    updateCategoryCounts(categories)
+  }, [problems, categories])
+
+  useEffect(() => {
     if (searchTerm) {
-      filtered = filtered.filter(p => 
+      const filtered = problems.filter(p => 
         p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.notes.toLowerCase().includes(searchTerm.toLowerCase())
       )
+      setFilteredProblems(filtered)
+    } else {
+      setFilteredProblems(problems)
     }
-    
-    setFilteredProblems(filtered)
-  }, [problems, selectedCategory, searchTerm])
+  }, [problems, searchTerm])
 
   useEffect(() => {
     if (selectedProblem) {
@@ -239,11 +260,7 @@ export default function ProblemsPage() {
     }
   }
 
-  const handleDeleteProblem = async (problemId: string) => {
-    message.info('历史记录不支持删除，如需管理题目请在学习计划中操作')
-  }
-
-  const handleCreateCategory = () => {
+  const handleCreateCategory = async () => {
     if (!newCategoryName.trim()) {
       message.error('请输入分类名称')
       return
@@ -255,12 +272,36 @@ export default function ProblemsPage() {
       return
     }
     
-    message.success('分类创建成功')
-    setIsCreateCategoryModalOpen(false)
-    setNewCategoryName('')
+    try {
+      const categoryName = newCategoryName.trim()
+      
+      const response = await fetch('/api/categories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: categoryName
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        message.success('分类创建成功')
+        setIsCreateCategoryModalOpen(false)
+        setNewCategoryName('')
+        fetchCategories()
+      } else {
+        message.error(data.error || '创建失败')
+      }
+    } catch (error) {
+      console.error('创建分类失败:', error)
+      message.error('创建失败')
+    }
   }
 
-  const handleDeleteCategory = (categoryName: string) => {
+  const handleDeleteCategory = async (categoryId: string, categoryName: string) => {
     if (confirm(`确定要删除分类"${categoryName}"吗？该分类下的题目将移动到"未分类"。`)) {
       try {
         const problemsToUpdate = problems.filter(p => p.category === categoryName)
@@ -277,14 +318,117 @@ export default function ProblemsPage() {
           })
         )
         
-        Promise.all(updatePromises).then(() => {
-          message.success('分类删除成功')
-          fetchProblems()
+        await Promise.all(updatePromises)
+        
+        const response = await fetch(`/api/categories/${categoryId}`, {
+          method: 'DELETE'
         })
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          message.success('分类删除成功')
+          fetchCategories()
+          fetchProblems()
+        } else {
+          message.error(data.error || '删除失败')
+        }
       } catch (error) {
         console.error('删除分类失败:', error)
         message.error('删除失败')
       }
+    }
+  }
+
+  const handleDeleteProblem = async (problemId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    
+    if (!confirm('确定要删除这条学习记录吗？此操作不可恢复。')) {
+      return
+    }
+    
+    try {
+      const response = await fetch(`/api/problems/history/${problemId}`, {
+        method: 'DELETE'
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        message.success('删除成功')
+        if (selectedProblem?.id === problemId) {
+          setSelectedProblem(null)
+        }
+        fetchProblems()
+        fetchCategories()
+      } else {
+        message.error(data.error || '删除失败')
+      }
+    } catch (error) {
+      console.error('删除学习记录失败:', error)
+      message.error('删除失败')
+    }
+  }
+
+  const handleDragStart = (problem: Problem) => {
+    setDraggedProblem(problem)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedProblem(null)
+    setDragOverCategory(null)
+  }
+
+  const handleDragOver = (e: React.DragEvent, categoryId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOverCategory(categoryId)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOverCategory(null)
+  }
+
+  const handleDrop = async (e: React.DragEvent, categoryId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    if (!draggedProblem) {
+      setDragOverCategory(null)
+      return
+    }
+
+    const categoryName = categoryId === 'all' ? '未分类' : categories.find(c => c.id === categoryId)?.name || '未分类'
+    
+    try {
+      const response = await fetch('/api/problems/history', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          recordId: draggedProblem.id,
+          category: categoryName
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        message.success(`已移动到"${categoryName}"`)
+        fetchProblems()
+        fetchCategories()
+      } else {
+        message.error(data.error || '移动失败')
+      }
+    } catch (error) {
+      console.error('移动题目失败:', error)
+      message.error('移动失败')
+    } finally {
+      setDraggedProblem(null)
+      setDragOverCategory(null)
     }
   }
 
@@ -325,6 +469,7 @@ export default function ProblemsPage() {
           category: ''
         })
         fetchProblems()
+        fetchCategories()
       } else {
         message.error('创建失败')
       }
@@ -377,68 +522,143 @@ export default function ProblemsPage() {
 
           <div className={styles.categories}>
             <div 
-              className={`${styles.categoryItem} ${selectedCategory === 'all' ? styles.active : ''}`}
-              onClick={() => setSelectedCategory('all')}
+              className={`${styles.categoryItem} ${dragOverCategory === 'all' ? styles.dragOver : ''}`}
+              onDragOver={(e) => handleDragOver(e, 'all')}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, 'all')}
             >
-              <BookOpen size={14} />
-              <span>全部题目</span>
-              <span className={styles.count}>{total}</span>
+              <div 
+                className={`${styles.categoryContent} ${expandedCategories.has('all') ? styles.expanded : ''}`}
+                onClick={() => {
+                  const newExpanded = new Set(expandedCategories)
+                  if (newExpanded.has('all')) {
+                    newExpanded.delete('all')
+                  } else {
+                    newExpanded.add('all')
+                  }
+                  setExpandedCategories(newExpanded)
+                }}
+              >
+                <ChevronRight size={12} className={styles.chevron} />
+                <BookOpen size={14} />
+                <span>全部题目</span>
+                <span className={styles.count}>{total}</span>
+              </div>
             </div>
+            
+            {expandedCategories.has('all') && (
+              <div className={styles.problemList}>
+                {problems.map(problem => (
+                  <div 
+                    key={problem.id}
+                    className={`${styles.problemItem} ${selectedProblem?.id === problem.id ? styles.active : ''} ${draggedProblem?.id === problem.id ? styles.dragging : ''}`}
+                    onClick={() => setSelectedProblem(problem)}
+                    draggable
+                    onDragStart={() => handleDragStart(problem)}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <div className={styles.problemHeader}>
+                      <span className={styles.problemNumber}>#{problem.number}</span>
+                      <span className={styles.problemTitle}>{problem.title}</span>
+                    </div>
+                    <div className={styles.problemMeta}>
+                      <span className={`${styles.difficulty} ${styles[problem.difficulty]}`}>
+                        {problem.difficulty === 'easy' ? '简单' : problem.difficulty === 'medium' ? '中等' : '困难'}
+                      </span>
+                      <span className={styles.review}>
+                        <RefreshCw size={10} />
+                        {problem.reviewCount}
+                      </span>
+                      <button 
+                        className={styles.deleteProblemButton}
+                        onClick={(e) => handleDeleteProblem(problem.id, e)}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onDragStart={(e) => e.preventDefault()}
+                        title="删除学习记录"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {categories.map(category => (
-              <div key={category.id} className={styles.categoryItem}>
+              <div key={category.id}>
                 <div 
-                  className={`${styles.categoryContent} ${selectedCategory === category.id ? styles.active : ''}`}
-                  onClick={() => setSelectedCategory(category.id)}
+                  className={`${styles.categoryItem} ${dragOverCategory === category.id ? styles.dragOver : ''}`}
+                  onDragOver={(e) => handleDragOver(e, category.id)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, category.id)}
                 >
-                  <Folder size={14} />
-                  <span>{category.name}</span>
-                  <span className={styles.count}>{category.count}</span>
+                  <div 
+                    className={`${styles.categoryContent} ${expandedCategories.has(category.id) ? styles.expanded : ''}`}
+                    onClick={() => {
+                      const newExpanded = new Set(expandedCategories)
+                      if (newExpanded.has(category.id)) {
+                        newExpanded.delete(category.id)
+                      } else {
+                        newExpanded.add(category.id)
+                      }
+                      setExpandedCategories(newExpanded)
+                    }}
+                  >
+                    <ChevronRight size={12} className={styles.chevron} />
+                    <Folder size={14} />
+                    <span>{category.name}</span>
+                    <span className={styles.count}>{category.count}</span>
+                  </div>
+                  <button 
+                    className={styles.deleteButton}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeleteCategory(category.id, category.name)
+                    }}
+                  >
+                    <X size={12} />
+                  </button>
                 </div>
-                <button 
-                  className={styles.deleteButton}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleDeleteCategory(category.name)
-                  }}
-                >
-                  <X size={12} />
-                </button>
+                
+                {expandedCategories.has(category.id) && category.problems && (
+                  <div className={styles.problemList}>
+                    {category.problems.map(problem => (
+                      <div 
+                        key={problem.id}
+                        className={`${styles.problemItem} ${selectedProblem?.id === problem.id ? styles.active : ''} ${draggedProblem?.id === problem.id ? styles.dragging : ''}`}
+                        onClick={() => setSelectedProblem(problem)}
+                        draggable
+                        onDragStart={() => handleDragStart(problem)}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <div className={styles.problemHeader}>
+                          <span className={styles.problemNumber}>#{problem.number}</span>
+                          <span className={styles.problemTitle}>{problem.title}</span>
+                        </div>
+                        <div className={styles.problemMeta}>
+                          <span className={`${styles.difficulty} ${styles[problem.difficulty]}`}>
+                            {problem.difficulty === 'easy' ? '简单' : problem.difficulty === 'medium' ? '中等' : '困难'}
+                          </span>
+                          <span className={styles.review}>
+                            <RefreshCw size={10} />
+                            {problem.reviewCount}
+                          </span>
+                          <button 
+                            className={styles.deleteProblemButton}
+                            onClick={(e) => handleDeleteProblem(problem.id, e)}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onDragStart={(e) => e.preventDefault()}
+                            title="删除学习记录"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
-          </div>
-
-          <div className={styles.problemList}>
-            {loading ? (
-              <div className={styles.loading}>
-                <Loader className={styles.spinner} size={16} />
-                <span>加载中...</span>
-              </div>
-            ) : filteredProblems.length === 0 ? (
-              <div className={styles.empty}>暂无题目</div>
-            ) : (
-              filteredProblems.map(problem => (
-                <div 
-                  key={problem.id}
-                  className={`${styles.problemItem} ${selectedProblem?.id === problem.id ? styles.active : ''}`}
-                  onClick={() => setSelectedProblem(problem)}
-                >
-                  <div className={styles.problemHeader}>
-                    <span className={styles.problemNumber}>#{problem.number}</span>
-                    <span className={styles.problemTitle}>{problem.title}</span>
-                  </div>
-                  <div className={styles.problemMeta}>
-                    <span className={`${styles.difficulty} ${styles[problem.difficulty]}`}>
-                      {problem.difficulty === 'easy' ? '简单' : problem.difficulty === 'medium' ? '中等' : '困难'}
-                    </span>
-                    <span className={styles.review}>
-                      <RefreshCw size={10} />
-                      {problem.reviewCount}
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
           </div>
         </aside>
 
