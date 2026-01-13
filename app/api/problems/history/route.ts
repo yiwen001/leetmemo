@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
     const sortBy = searchParams.get('sortBy') || 'newest'
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = parseInt(searchParams.get('limit') || '1000')
     const offset = parseInt(searchParams.get('offset') || '0')
 
     // 构建查询条件
@@ -106,7 +106,8 @@ export async function GET(request: NextRequest) {
       notes: record.notes || '',
       difficulty: record.leetcodeProblem.difficulty,
       completed: record.completed,
-      timeSpent: record.timeSpent
+      timeSpent: record.timeSpent,
+      category: record.leetcodeProblem.category || '未分类'
     }))
 
     return NextResponse.json({
@@ -162,6 +163,161 @@ export async function PATCH(request: NextRequest) {
 
   } catch (error) {
     console.error('更新笔记失败:', error)
+    return NextResponse.json({
+      success: false,
+      error: '更新失败'
+    }, { status: 500 })
+  }
+}
+
+// 创建题目笔记
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '未登录' }, { status: 401 })
+    }
+
+    const { url, title, difficulty, category } = await request.json()
+    
+    if (!url || !title) {
+      return NextResponse.json({ error: '缺少必要参数' }, { status: 400 })
+    }
+
+    // 检查题目是否已存在
+    let leetcodeProblem = await prisma.leetcodeProblem.findFirst({
+      where: {
+        url: url,
+        OR: [
+          { isPublic: true },
+          { createdBy: session.user.id }
+        ]
+      }
+    })
+
+    // 如果题目不存在，创建新题目
+    if (!leetcodeProblem) {
+      leetcodeProblem = await prisma.leetcodeProblem.create({
+        data: {
+          slug: `custom-${Date.now()}`,
+          title: title,
+          titleCn: title,
+          difficulty: difficulty || 'medium',
+          url: url,
+          tags: [],
+          category: category || '未分类',
+          isPublic: false,
+          createdBy: session.user.id,
+          notes: ''
+        }
+      })
+    }
+
+    // 检查是否已存在学习记录
+    let studyRecord = await prisma.studyRecord.findFirst({
+      where: {
+        userId: session.user.id,
+        problemId: leetcodeProblem.id
+      }
+    })
+
+    // 如果学习记录不存在，创建新记录
+    if (!studyRecord) {
+      studyRecord = await prisma.studyRecord.create({
+        data: {
+          userId: session.user.id,
+          problemId: leetcodeProblem.id,
+          difficulty: leetcodeProblem.difficulty,
+          reviewCount: 0,
+          completed: false,
+          notes: '',
+          timeSpent: 0
+        },
+        include: {
+          leetcodeProblem: true
+        }
+      })
+    }
+
+    return NextResponse.json({
+      success: true,
+      record: studyRecord
+    })
+
+  } catch (error) {
+    console.error('创建题目笔记失败:', error)
+    return NextResponse.json({
+      success: false,
+      error: '创建失败'
+    }, { status: 500 })
+  }
+}
+
+// 更新题目分类
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '未登录' }, { status: 401 })
+    }
+
+    const { recordId, category } = await request.json()
+    
+    if (!recordId || !category) {
+      return NextResponse.json({ error: '缺少必要参数' }, { status: 400 })
+    }
+
+    // 获取学习记录
+    const studyRecord = await prisma.studyRecord.findFirst({
+      where: {
+        id: recordId,
+        userId: session.user.id
+      },
+      include: {
+        leetcodeProblem: true
+      }
+    })
+
+    if (!studyRecord) {
+      return NextResponse.json({ error: '学习记录不存在' }, { status: 404 })
+    }
+
+    // 更新题目分类
+    const updatedProblem = await prisma.leetcodeProblem.update({
+      where: {
+        id: studyRecord.problemId
+      },
+      data: {
+        category: category
+      }
+    })
+
+    // 更新学习记录
+    const updatedRecord = await prisma.studyRecord.update({
+      where: {
+        id: recordId
+      },
+      data: {
+        leetcodeProblem: {
+          connect: {
+            id: updatedProblem.id
+          }
+        }
+      },
+      include: {
+        leetcodeProblem: true
+      }
+    })
+
+    return NextResponse.json({
+      success: true,
+      record: updatedRecord
+    })
+
+  } catch (error) {
+    console.error('更新题目分类失败:', error)
     return NextResponse.json({
       success: false,
       error: '更新失败'

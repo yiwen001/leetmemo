@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Trash2, Edit2, Search, FileText, Calendar, RefreshCw, Loader, AlertTriangle, Download } from 'lucide-react'
+import { ArrowLeft, Trash2, Search, FileText, Calendar, RefreshCw, Loader, BookOpen, Plus, Folder, X, Bold, Italic, Code, Link as LinkIcon, List, Quote, Image, Type, Minus, ChevronRight, Hash } from 'lucide-react'
 import Link from 'next/link'
-import { Modal, Input, message, Popconfirm, Select } from 'antd'
+import { Input, message, Popconfirm, Empty } from 'antd'
 import ReactMarkdown from 'react-markdown'
 import rehypeSanitize from 'rehype-sanitize'
 import rehypeRaw from 'rehype-raw'
@@ -22,6 +22,7 @@ interface Problem {
   difficulty: string
   completed: boolean
   timeSpent: number
+  category: string
   studyPlan?: {
     id: string
     startDate: string
@@ -29,66 +30,180 @@ interface Problem {
   } | null
 }
 
-// 排序选项
-type SortOption = 'newest' | 'oldest' | 'most-reviewed' | 'least-reviewed' | 'recently-reviewed' | 'title-asc' | 'title-desc';
+interface Category {
+  id: string
+  name: string
+  count: number
+  children?: Category[]
+}
+
+type SortOption = 'newest' | 'oldest' | 'most-reviewed' | 'least-reviewed' | 'recently-reviewed' | 'title-asc' | 'title-desc'
 
 export default function ProblemsPage() {
-  const [problems, setProblems] = useState<Problem[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [currentNotes, setCurrentNotes] = useState('');
-  const [currentProblemId, setCurrentProblemId] = useState<string | null>(null);
-  const [sortOption, setSortOption] = useState<SortOption>('newest');
-  const [isPreviewMode, setIsPreviewMode] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
+  const [problems, setProblems] = useState<Problem[]>([])
+  const [filteredProblems, setFilteredProblems] = useState<Problem[]>([])
+  const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sortOption, setSortOption] = useState<SortOption>('newest')
+  const [loading, setLoading] = useState(true)
+  const [total, setTotal] = useState(0)
+  
+  const [editingNotes, setEditingNotes] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  
+  const [isCreateCategoryModalOpen, setIsCreateCategoryModalOpen] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  
+  const [isCreateProblemModalOpen, setIsCreateProblemModalOpen] = useState(false)
+  const [newProblem, setNewProblem] = useState({
+    url: '',
+    title: '',
+    difficulty: 'medium',
+    category: ''
+  })
+  
+  const [categories, setCategories] = useState<Category[]>([])
 
-  // 从API获取历史题目数据
+  const editorRef = useState<HTMLTextAreaElement | null>(null)
+  const [splitPosition, setSplitPosition] = useState(50)
+  const [isDragging, setIsDragging] = useState(false)
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true)
+    e.preventDefault()
+  }
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return
+      
+      const container = document.querySelector(`.${styles.editorContainer}`)
+      if (!container) return
+      
+      const rect = container.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const percentage = (x / rect.width) * 100
+      
+      if (percentage >= 20 && percentage <= 80) {
+        setSplitPosition(percentage)
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+    }
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging])
+
+  const insertMarkdown = (before: string, after: string = '') => {
+    const textarea = document.querySelector(`.${styles.editor}`) as HTMLTextAreaElement
+    if (!textarea) return
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const text = editingNotes
+    const selectedText = text.substring(start, end)
+    
+    const newText = text.substring(0, start) + before + selectedText + after + text.substring(end)
+    setEditingNotes(newText)
+    
+    setTimeout(() => {
+      textarea.focus()
+      textarea.setSelectionRange(start + before.length, start + before.length + selectedText.length)
+    }, 0)
+  }
+
   const fetchProblems = async () => {
     try {
-      setLoading(true);
+      setLoading(true)
       const params = new URLSearchParams({
         search: searchTerm,
         sortBy: sortOption,
-        limit: '100' // 获取更多数据
-      });
+        limit: '1000'
+      })
       
-      const response = await fetch(`/api/problems/history?${params}`);
-      const data = await response.json();
+      const response = await fetch(`/api/problems/history?${params}`)
+      const data = await response.json()
       
       if (data.success) {
-        setProblems(data.problems);
-        setTotal(data.total);
+        setProblems(data.problems)
+        setTotal(data.total)
+        generateCategories(data.problems)
       } else {
-        message.error('获取题目失败');
+        message.error('获取题目失败')
       }
     } catch (error) {
-      console.error('获取题目失败:', error);
-      message.error('获取题目失败');
+      console.error('获取题目失败:', error)
+      message.error('获取题目失败')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  // 初始加载和搜索/排序变化时重新获取
-  useEffect(() => {
-    fetchProblems();
-  }, [searchTerm, sortOption]);
-
-  const sortedProblems = problems; // API已经处理了排序
-
-  // 打开编辑笔记模态框
-  const openEditModal = (problemId: string, notes: string) => {
-    setCurrentProblemId(problemId);
-    setCurrentNotes(notes);
-    setIsPreviewMode(false);
-    setIsEditModalOpen(true);
-  };
-
-  // 保存笔记
-  const saveNotes = async () => {
-    if (!currentProblemId) return;
+  const generateCategories = (problems: Problem[]) => {
+    const categoryMap = new Map<string, number>()
     
+    problems.forEach(problem => {
+      const category = problem.category || '未分类'
+      categoryMap.set(category, (categoryMap.get(category) || 0) + 1)
+    })
+    
+    const categoryList: Category[] = Array.from(categoryMap.entries()).map(([name, count]) => ({
+      id: name,
+      name,
+      count
+    }))
+    
+    categoryList.sort((a, b) => b.count - a.count)
+    
+    setCategories(categoryList)
+  }
+
+  useEffect(() => {
+    fetchProblems()
+  }, [searchTerm, sortOption])
+
+  useEffect(() => {
+    let filtered = problems
+    
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(p => p.category === selectedCategory)
+    }
+    
+    if (searchTerm) {
+      filtered = filtered.filter(p => 
+        p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.notes.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+    
+    setFilteredProblems(filtered)
+  }, [problems, selectedCategory, searchTerm])
+
+  useEffect(() => {
+    if (selectedProblem) {
+      setEditingNotes(selectedProblem.notes || '')
+    }
+  }, [selectedProblem])
+
+  const handleNotesChange = (value: string) => {
+    setEditingNotes(value)
+  }
+
+  const saveNotes = async () => {
+    if (!selectedProblem?.id) return
+    
+    setIsSaving(true)
     try {
       const response = await fetch('/api/problems/history', {
         method: 'PATCH',
@@ -96,410 +211,518 @@ export default function ProblemsPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          recordId: currentProblemId,
-          notes: currentNotes
+          recordId: selectedProblem.id,
+          notes: editingNotes
         })
-      });
+      })
 
-      const data = await response.json();
+      const data = await response.json()
       
       if (data.success) {
-        // 更新本地状态
-        setProblems((prev: Problem[]) => 
-          prev.map((problem: Problem) => 
-            problem.id === currentProblemId 
-              ? { ...problem, notes: currentNotes }
-              : problem
+        setProblems(prev => 
+          prev.map(p => 
+            p.id === selectedProblem.id 
+              ? { ...p, notes: editingNotes }
+              : p
           )
-        );
-        setIsEditModalOpen(false);
-        message.success('笔记已更新');
+        )
+        setSelectedProblem(prev => prev ? { ...prev, notes: editingNotes } : null)
+        message.success('笔记已保存')
       } else {
-        message.error('更新失败');
+        message.error('保存失败')
       }
     } catch (error) {
-      console.error('更新笔记失败:', error);
-      message.error('更新失败');
+      console.error('保存笔记失败:', error)
+      message.error('保存失败')
+    } finally {
+      setIsSaving(false)
     }
-  };
+  }
 
-  // 删除题目功能暂时禁用，因为这是历史记录
-  const handleDelete = (problemId: string) => {
-    message.info('历史记录不支持删除，如需管理题目请在学习计划中操作');
-  };
+  const handleDeleteProblem = async (problemId: string) => {
+    message.info('历史记录不支持删除，如需管理题目请在学习计划中操作')
+  }
 
-  // 导出笔记为Markdown
-  const exportNotesToMarkdown = () => {
-    // 过滤出有笔记的题目
-    const problemsWithNotes = problems.filter(problem => problem.notes && problem.notes.trim() !== '');
-    
-    if (problemsWithNotes.length === 0) {
-      message.warning('没有找到包含笔记的题目');
-      return;
+  const handleCreateCategory = () => {
+    if (!newCategoryName.trim()) {
+      message.error('请输入分类名称')
+      return
     }
-
-    // 统计信息
-    const stats = {
-      total: problems.length,
-      withNotes: problemsWithNotes.length,
-      completed: problems.filter(p => p.completed).length,
-      totalReviews: problems.reduce((sum, p) => sum + p.reviewCount, 0),
-      totalTimeSpent: problems.reduce((sum, p) => sum + (p.timeSpent || 0), 0)
-    };
-
-    // 生成Markdown内容
-    let markdownContent = `# LeetCode 学习笔记\n\n`;
-    markdownContent += `## 📊 学习统计\n\n`;
-    markdownContent += `| 统计项目 | 数值 |\n`;
-    markdownContent += `|---------|------|\n`;
-    markdownContent += `| 导出时间 | ${new Date().toLocaleString('zh-CN')} |\n`;
-    markdownContent += `| 总题目数 | ${stats.total} |\n`;
-    markdownContent += `| 有笔记题目 | ${stats.withNotes} |\n`;
-    markdownContent += `| 已完成题目 | ${stats.completed} |\n`;
-    markdownContent += `| 总复习次数 | ${stats.totalReviews} |\n`;
-    markdownContent += `| 总学习时长 | ${Math.round(stats.totalTimeSpent / 60)} 分钟 |\n\n`;
-    markdownContent += `---\n\n`;
-
-    // 生成目录
-    markdownContent += `## 📚 题目目录\n\n`;
     
-    // 按难度分组
-    const groupedByDifficulty = {
-      easy: problemsWithNotes.filter(p => p.difficulty === 'easy'),
-      medium: problemsWithNotes.filter(p => p.difficulty === 'medium'),
-      hard: problemsWithNotes.filter(p => p.difficulty === 'hard')
-    };
+    const existingCategory = categories.find(c => c.name === newCategoryName.trim())
+    if (existingCategory) {
+      message.error('该分类已存在')
+      return
+    }
+    
+    message.success('分类创建成功')
+    setIsCreateCategoryModalOpen(false)
+    setNewCategoryName('')
+  }
 
-    const difficultyNames = {
-      easy: '简单',
-      medium: '中等', 
-      hard: '困难'
-    };
-
-    // 先生成目录
-    Object.entries(groupedByDifficulty).forEach(([difficulty, problemList]) => {
-      if (problemList.length > 0) {
-        markdownContent += `### ${difficultyNames[difficulty as keyof typeof difficultyNames]} (${problemList.length}题)\n\n`;
-        problemList.forEach((problem, index) => {
-          markdownContent += `${index + 1}. [${problem.number}. ${problem.title}](#${index + 1}-${problem.number}-${problem.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')})\n`;
-        });
-        markdownContent += `\n`;
-      }
-    });
-
-    markdownContent += `---\n\n`;
-
-    // 然后生成详细内容
-    Object.entries(groupedByDifficulty).forEach(([difficulty, problemList]) => {
-      if (problemList.length > 0) {
-        markdownContent += `## ${difficultyNames[difficulty as keyof typeof difficultyNames]} (${problemList.length}题)\n\n`;
+  const handleDeleteCategory = (categoryName: string) => {
+    if (confirm(`确定要删除分类"${categoryName}"吗？该分类下的题目将移动到"未分类"。`)) {
+      try {
+        const problemsToUpdate = problems.filter(p => p.category === categoryName)
+        const updatePromises = problemsToUpdate.map(problem => 
+          fetch('/api/problems/history', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              recordId: problem.id,
+              category: '未分类'
+            })
+          })
+        )
         
-        problemList.forEach((problem, index) => {
-          markdownContent += `### ${index + 1}. [${problem.number}. ${problem.title}](${problem.url})\n\n`;
-          
-          // 基本信息表格
-          markdownContent += `| 属性 | 值 |\n`;
-          markdownContent += `|------|----|\n`;
-          markdownContent += `| 🎯 难度 | ${difficultyNames[problem.difficulty as keyof typeof difficultyNames]} |\n`;
-          markdownContent += `| 🔄 复习次数 | ${problem.reviewCount} |\n`;
-          markdownContent += `| 📅 最后复习 | ${new Date(problem.lastReviewDate).toLocaleDateString('zh-CN')} |\n`;
-          markdownContent += `| ➕ 添加时间 | ${new Date(problem.addedDate).toLocaleDateString('zh-CN')} |\n`;
-          markdownContent += `| ✅ 完成状态 | ${problem.completed ? '已完成' : '未完成'} |\n`;
-          if (problem.timeSpent && problem.timeSpent > 0) {
-            markdownContent += `| ⏱️ 学习时长 | ${Math.round(problem.timeSpent / 60)} 分钟 |\n`;
-          }
-          if (problem.studyPlan) {
-            markdownContent += `| 📚 学习计划 | ${problem.studyPlan.status} |\n`;
-          }
-          markdownContent += `\n`;
-          
-          // 笔记内容
-          markdownContent += `#### 📝 笔记内容\n\n`;
-          markdownContent += `${problem.notes}\n\n`;
-          markdownContent += `---\n\n`;
-        });
+        Promise.all(updatePromises).then(() => {
+          message.success('分类删除成功')
+          fetchProblems()
+        })
+      } catch (error) {
+        console.error('删除分类失败:', error)
+        message.error('删除失败')
       }
-    });
+    }
+  }
 
-    // 添加页脚信息
-    markdownContent += `\n---\n\n`;
-    markdownContent += `## 📄 导出信息\n\n`;
-    markdownContent += `- **生成工具**: LeetMemo 学习管理系统\n`;
-    markdownContent += `- **导出时间**: ${new Date().toLocaleString('zh-CN')}\n`;
-    markdownContent += `- **文件格式**: Markdown (.md)\n`;
-    markdownContent += `- **包含内容**: ${problemsWithNotes.length} 道题目的学习笔记\n\n`;
-    markdownContent += `> 💡 **提示**: 此文件可以在任何支持 Markdown 的编辑器中打开，如 Typora、VS Code、Obsidian 等。\n`;
-
-    // 创建并下载文件
-    const blob = new Blob([markdownContent], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `leetcode-notes-${new Date().toISOString().split('T')[0]}.md`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    message.success(`已导出 ${problemsWithNotes.length} 道题目的笔记到 Markdown 文件`);
-  };
-
-  // 清空所有学习历史
-  const handleClearAllHistory = async () => {
+  const handleCreateProblem = async () => {
+    if (!newProblem.url.trim()) {
+      message.error('请输入题目链接')
+      return
+    }
+    
+    if (!newProblem.title.trim()) {
+      message.error('请输入题目标题')
+      return
+    }
+    
+    if (!newProblem.category.trim()) {
+      message.error('请选择或输入分类')
+      return
+    }
+    
     try {
       const response = await fetch('/api/problems/history', {
-        method: 'DELETE'
-      });
-
-      const data = await response.json();
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newProblem)
+      })
+      
+      const data = await response.json()
       
       if (data.success) {
-        setProblems([]);
-        setTotal(0);
-        message.success(data.message);
+        message.success('题目创建成功')
+        setIsCreateProblemModalOpen(false)
+        setNewProblem({
+          url: '',
+          title: '',
+          difficulty: 'medium',
+          category: ''
+        })
+        fetchProblems()
       } else {
-        message.error('清空失败');
+        message.error('创建失败')
       }
     } catch (error) {
-      console.error('清空学习历史失败:', error);
-      message.error('清空失败');
+      console.error('创建题目失败:', error)
+      message.error('创建失败')
     }
-  };
-
-  // 切换编辑/预览模式
-  const togglePreviewMode = () => {
-    setIsPreviewMode(!isPreviewMode);
-  };
+  }
 
   return (
     <div className={styles.container}>
-      {/* 导航栏 */}
-      <nav className={styles.navbar}>
-        <div className={styles.navContent}>
-          <Link href="/" className={styles.backLink}>
-            <ArrowLeft size={20} />
-            返回首页
-          </Link>
-          <h1 className={styles.pageTitle}>所有题目</h1>
-        </div>
-      </nav>
+      <div className={styles.header}>
+        <Link href="/" className={styles.backLink}>
+          <ArrowLeft size={18} />
+          <span>返回首页</span>
+        </Link>
+        <h1 className={styles.title}>学习笔记</h1>
+      </div>
 
-      {/* 主内容区 */}
-      <main className={styles.main}>
-        <div className={styles.toolBar}>
-          <div className={styles.searchArea}>
-            <Input 
-              prefix={<Search size={14} />} 
-              placeholder="搜索题目或笔记内容" 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              allowClear
-              className={styles.searchInput}
-            />
-          </div>
-          <div className={styles.toolBarRight}>
-            <div className={styles.sortArea}>
-              <span className={styles.sortLabel}>排序: </span>
-              <Select 
-                value={sortOption}
-                onChange={(value: SortOption) => setSortOption(value)}
-                className={styles.sortSelect}
-                options={[
-                  { value: 'newest', label: '最近添加' },
-                  { value: 'oldest', label: '最早添加' },
-                  { value: 'most-reviewed', label: '复习次数最多' },
-                  { value: 'least-reviewed', label: '复习次数最少' },
-                  { value: 'recently-reviewed', label: '最近复习' },
-                  { value: 'title-asc', label: '题目名称 A-Z' },
-                  { value: 'title-desc', label: '题目名称 Z-A' },
-                ]}
+      <div className={styles.layout}>
+        <aside className={styles.sidebar}>
+          <div className={styles.sidebarTop}>
+            <div className={styles.searchBox}>
+              <Search size={14} className={styles.searchIcon} />
+              <input
+                type="text"
+                placeholder="搜索题目..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={styles.searchInput}
               />
             </div>
-            <button
-              onClick={exportNotesToMarkdown}
-              className={styles.exportButton}
-              title="导出笔记为Markdown"
-            >
-              <Download size={16} />
-              导出笔记
-            </button>
-            <Popconfirm
-              title="清空学习历史"
-              description={
-                <div>
-                  <p>确定要清空所有学习历史吗？</p>
-                  <p style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>
-                    ⚠️ 此操作不可撤销，将删除所有学习记录和笔记
-                  </p>
-                </div>
-              }
-              onConfirm={handleClearAllHistory}
-              okText="确定清空"
-              cancelText="取消"
-              okButtonProps={{ danger: true }}
-              icon={<AlertTriangle size={16} />}
-            >
-              <button className={styles.clearAllButton} disabled={loading || total === 0}>
-                <AlertTriangle size={16} />
-                清空历史
+            <div className={styles.sidebarActions}>
+              <button 
+                className={styles.actionButton}
+                onClick={() => setIsCreateCategoryModalOpen(true)}
+                title="新建分类"
+              >
+                <Folder size={14} />
               </button>
-            </Popconfirm>
+              <button 
+                className={styles.actionButton}
+                onClick={() => setIsCreateProblemModalOpen(true)}
+                title="新建题目"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
           </div>
-        </div>
-        
-        <div className={styles.problemCount}>
-          {loading ? (
-            <div className={styles.loadingState}>
-              <Loader className={styles.spinner} size={16} />
-              <span>加载中...</span>
-            </div>
-          ) : (
-            `共 ${total} 道题目，显示 ${sortedProblems.length} 道`
-          )}
-        </div>
 
-        {/* 卡片布局 */}
-        <div className={styles.problemCards}>
-          {loading ? (
-            <div className={styles.loadingState}>
-              <Loader className={styles.spinner} size={24} />
-              <p>正在加载历史题目...</p>
+          <div className={styles.categories}>
+            <div 
+              className={`${styles.categoryItem} ${selectedCategory === 'all' ? styles.active : ''}`}
+              onClick={() => setSelectedCategory('all')}
+            >
+              <BookOpen size={14} />
+              <span>全部题目</span>
+              <span className={styles.count}>{total}</span>
             </div>
-          ) : sortedProblems.length === 0 ? (
-            <div className={styles.emptyState}>
-              <p>没有找到匹配的题目</p>
-              <p className={styles.emptyHint}>开始学习计划后，完成的题目会在这里显示</p>
-            </div>
-          ) : (
-            sortedProblems.map(problem => (
-              <div key={problem.id} className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <div className={styles.problemInfo}>
+
+            {categories.map(category => (
+              <div key={category.id} className={styles.categoryItem}>
+                <div 
+                  className={`${styles.categoryContent} ${selectedCategory === category.id ? styles.active : ''}`}
+                  onClick={() => setSelectedCategory(category.id)}
+                >
+                  <Folder size={14} />
+                  <span>{category.name}</span>
+                  <span className={styles.count}>{category.count}</span>
+                </div>
+                <button 
+                  className={styles.deleteButton}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleDeleteCategory(category.name)
+                  }}
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className={styles.problemList}>
+            {loading ? (
+              <div className={styles.loading}>
+                <Loader className={styles.spinner} size={16} />
+                <span>加载中...</span>
+              </div>
+            ) : filteredProblems.length === 0 ? (
+              <div className={styles.empty}>暂无题目</div>
+            ) : (
+              filteredProblems.map(problem => (
+                <div 
+                  key={problem.id}
+                  className={`${styles.problemItem} ${selectedProblem?.id === problem.id ? styles.active : ''}`}
+                  onClick={() => setSelectedProblem(problem)}
+                >
+                  <div className={styles.problemHeader}>
                     <span className={styles.problemNumber}>#{problem.number}</span>
+                    <span className={styles.problemTitle}>{problem.title}</span>
+                  </div>
+                  <div className={styles.problemMeta}>
+                    <span className={`${styles.difficulty} ${styles[problem.difficulty]}`}>
+                      {problem.difficulty === 'easy' ? '简单' : problem.difficulty === 'medium' ? '中等' : '困难'}
+                    </span>
+                    <span className={styles.review}>
+                      <RefreshCw size={10} />
+                      {problem.reviewCount}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </aside>
+
+        <main className={styles.main}>
+          {selectedProblem ? (
+            <>
+              <div className={styles.problemInfo}>
+                <div className={styles.problemHeader}>
+                  <div className={styles.problemTitleSection}>
+                    <span className={styles.problemNumber}>#{selectedProblem.number}</span>
                     <a 
-                      href={problem.url} 
+                      href={selectedProblem.url} 
                       target="_blank" 
                       rel="noopener noreferrer" 
-                      className={styles.problemTitle}
+                      className={styles.problemTitleLink}
                     >
-                      {problem.title}
+                      {selectedProblem.title}
                     </a>
+                    <span className={`${styles.difficulty} ${styles[selectedProblem.difficulty]}`}>
+                      {selectedProblem.difficulty === 'easy' ? '简单' : selectedProblem.difficulty === 'medium' ? '中等' : '困难'}
+                    </span>
+                    <span className={styles.metaItem}>
+                      <Folder size={12} />
+                      {selectedProblem.category || '未分类'}
+                    </span>
+                    <span className={styles.metaItem}>
+                      <RefreshCw size={12} />
+                      {selectedProblem.reviewCount}
+                    </span>
                   </div>
-                  <div className={styles.cardActions}>
+                  <div className={styles.problemActions}>
                     <button 
-                      className={styles.editButton}
-                      onClick={() => openEditModal(problem.id, problem.notes)}
-                      title="编辑笔记"
+                      className={styles.saveButton}
+                      onClick={saveNotes}
+                      disabled={isSaving}
                     >
-                      <Edit2 size={16} />
+                      {isSaving ? '保存中...' : '保存'}
                     </button>
                     <Popconfirm
                       title="删除题目"
                       description="确定要删除这道题目吗？此操作不可撤销。"
-                      onConfirm={() => handleDelete(problem.id)}
+                      onConfirm={() => handleDeleteProblem(selectedProblem.id)}
                       okText="确定"
                       cancelText="取消"
                     >
-                      <button 
-                        className={styles.deleteButton}
-                        title="删除题目"
-                      >
-                        <Trash2 size={16} />
+                      <button className={styles.deleteButton}>
+                        <Trash2 size={14} />
                       </button>
                     </Popconfirm>
                   </div>
                 </div>
-                <div className={styles.cardMeta}>
-                  <div className={styles.metaItem}>
-                    <RefreshCw size={14} />
-                    <span>复习 {problem.reviewCount} 次</span>
-                  </div>
-                  <div className={styles.metaItem}>
-                    <Calendar size={14} />
-                    <span>最近: {problem.lastReviewDate}</span>
-                  </div>
-                  <div className={styles.metaItem}>
+              </div>
+
+              <div className={styles.editorContainer}>
+                <div className={styles.editorPane} style={{ width: `${splitPosition}%` }}>
+                  <div className={styles.paneHeader}>
                     <FileText size={14} />
-                    <span>添加: {problem.addedDate}</span>
+                    <span>编辑</span>
                   </div>
-                  <div className={styles.metaItem}>
-                    <span className={`${styles.difficultyBadge} ${styles[problem.difficulty]}`}>
-                      {problem.difficulty === 'easy' ? '简单' : 
-                       problem.difficulty === 'medium' ? '中等' : '困难'}
-                    </span>
-                  </div>
-                  {problem.completed && (
-                    <div className={styles.metaItem}>
-                      <span className={styles.completedBadge}>已完成</span>
-                    </div>
-                  )}
-                </div>
-                <div className={styles.cardContent}>
-                  <div className={`${styles.notes} ${styles.markdown}`}>
-                    <ReactMarkdown
-                      rehypePlugins={[rehypeSanitize, rehypeRaw]}
-                      remarkPlugins={[remarkGfm]}
+                  <div className={styles.toolbar}>
+                    <button 
+                      className={styles.toolbarButton}
+                      onClick={() => insertMarkdown('# ', '')}
+                      title="标题 1"
                     >
-                      {problem.notes || '*暂无笔记*'}
-                    </ReactMarkdown>
+                      <Hash size={14} />
+                      <span>1</span>
+                    </button>
+                    <button 
+                      className={styles.toolbarButton}
+                      onClick={() => insertMarkdown('## ', '')}
+                      title="标题 2"
+                    >
+                      <Hash size={14} />
+                      <span>2</span>
+                    </button>
+                    <button 
+                      className={styles.toolbarButton}
+                      onClick={() => insertMarkdown('### ', '')}
+                      title="标题 3"
+                    >
+                      <Hash size={14} />
+                      <span>3</span>
+                    </button>
+                    <div className={styles.toolbarDivider}></div>
+                    <button 
+                      className={styles.toolbarButton}
+                      onClick={() => insertMarkdown('**', '**')}
+                      title="粗体"
+                    >
+                      <Bold size={14} />
+                    </button>
+                    <button 
+                      className={styles.toolbarButton}
+                      onClick={() => insertMarkdown('*', '*')}
+                      title="斜体"
+                    >
+                      <Italic size={14} />
+                    </button>
+                    <button 
+                      className={styles.toolbarButton}
+                      onClick={() => insertMarkdown('~~', '~~')}
+                      title="删除线"
+                    >
+                      <Minus size={14} />
+                    </button>
+                    <div className={styles.toolbarDivider}></div>
+                    <button 
+                      className={styles.toolbarButton}
+                      onClick={() => insertMarkdown('`', '`')}
+                      title="行内代码"
+                    >
+                      <Code size={14} />
+                    </button>
+                    <button 
+                      className={styles.toolbarButton}
+                      onClick={() => insertMarkdown('\n```\n', '\n```\n')}
+                      title="代码块"
+                    >
+                      <Code size={14} />
+                      <span>{'{}'}</span>
+                    </button>
+                    <div className={styles.toolbarDivider}></div>
+                    <button 
+                      className={styles.toolbarButton}
+                      onClick={() => insertMarkdown('[', '](url)')}
+                      title="链接"
+                    >
+                      <LinkIcon size={14} />
+                    </button>
+                    <button 
+                      className={styles.toolbarButton}
+                      onClick={() => insertMarkdown('![alt](', ')')}
+                      title="图片"
+                    >
+                      <Image size={14} />
+                    </button>
+                    <div className={styles.toolbarDivider}></div>
+                    <button 
+                      className={styles.toolbarButton}
+                      onClick={() => insertMarkdown('- ', '')}
+                      title="无序列表"
+                    >
+                      <List size={14} />
+                    </button>
+                    <button 
+                      className={styles.toolbarButton}
+                      onClick={() => insertMarkdown('1. ', '')}
+                      title="有序列表"
+                    >
+                      <List size={14} />
+                      <span>1.</span>
+                    </button>
+                    <button 
+                      className={styles.toolbarButton}
+                      onClick={() => insertMarkdown('> ', '')}
+                      title="引用"
+                    >
+                      <Quote size={14} />
+                    </button>
+                    <div className={styles.toolbarDivider}></div>
+                    <button 
+                      className={styles.toolbarButton}
+                      onClick={() => insertMarkdown('---', '')}
+                      title="分割线"
+                    >
+                      <Minus size={14} />
+                    </button>
+                  </div>
+                  <textarea
+                    value={editingNotes}
+                    onChange={(e) => handleNotesChange(e.target.value)}
+                    placeholder="开始编写你的笔记..."
+                    className={styles.editor}
+                    spellCheck={false}
+                  />
+                </div>
+                <div 
+                  className={styles.resizer}
+                  onMouseDown={handleMouseDown}
+                >
+                  <div className={styles.resizerHandle}></div>
+                </div>
+                <div className={styles.previewPane} style={{ width: `${100 - splitPosition}%` }}>
+                  <div className={styles.paneHeader}>
+                    <FileText size={14} />
+                    <span>预览</span>
+                  </div>
+                  <div className={styles.preview}>
+                    {editingNotes.trim() ? (
+                      <ReactMarkdown
+                        rehypePlugins={[rehypeSanitize, rehypeRaw]}
+                        remarkPlugins={[remarkGfm]}
+                      >
+                        {editingNotes}
+                      </ReactMarkdown>
+                    ) : (
+                      <div className={styles.emptyPreview}>在左侧输入内容，此处将实时预览</div>
+                    )}
                   </div>
                 </div>
               </div>
-            ))
+            </>
+          ) : (
+            <div className={styles.emptyState}>
+              <BookOpen size={48} />
+              <h3>选择一个题目查看详情</h3>
+              <p>从左侧列表中选择一个题目，或创建新的笔记</p>
+              <button 
+                className={styles.createButton}
+                onClick={() => setIsCreateProblemModalOpen(true)}
+              >
+                <Plus size={14} />
+                创建新笔记
+              </button>
+            </div>
           )}
-        </div>
-      </main>
+        </main>
+      </div>
 
-      {/* 编辑笔记模态框 */}
-      <Modal
-        title="编辑笔记"
-        open={isEditModalOpen}
-        onCancel={() => setIsEditModalOpen(false)}
-        onOk={saveNotes}
-        width={800}
-        okText="保存"
-        cancelText="取消"
-        bodyStyle={{ padding: '20px' }}
-        className={styles.notesModal}
-      >
-        <div className={styles.modalTabs}>
-          <button 
-            className={`${styles.tabButton} ${!isPreviewMode ? styles.activeTab : ''}`}
-            onClick={() => setIsPreviewMode(false)}
-          >
-            编辑
-          </button>
-          <button 
-            className={`${styles.tabButton} ${isPreviewMode ? styles.activeTab : ''}`}
-            onClick={() => setIsPreviewMode(true)}
-          >
-            预览
-          </button>
-        </div>
-        
-        {isPreviewMode ? (
-          <div className={`${styles.previewPane} ${styles.markdown}`}>
-            <ReactMarkdown
-              rehypePlugins={[rehypeSanitize, rehypeRaw]}
-              remarkPlugins={[remarkGfm]}
-            >
-              {currentNotes || '*暂无内容*'}
-            </ReactMarkdown>
+      {isCreateCategoryModalOpen && (
+        <div className={styles.modalOverlay} onClick={() => setIsCreateCategoryModalOpen(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3>新建分类</h3>
+            <Input
+              placeholder="请输入分类名称"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              onPressEnter={handleCreateCategory}
+            />
+            <div className={styles.modalActions}>
+              <button onClick={() => setIsCreateCategoryModalOpen(false)}>取消</button>
+              <button onClick={handleCreateCategory}>确定</button>
+            </div>
           </div>
-        ) : (
-          <Input.TextArea
-            value={currentNotes}
-            onChange={(e) => setCurrentNotes(e.target.value)}
-            rows={15}
-            placeholder="支持 Markdown 格式，例如：\n# 标题\n## 子标题\n- 列表项\n\n```java\n// 代码块\n```"
-            className={styles.notesTextarea}
-          />
-        )}
-        
-        <div className={styles.markdownHelp}>
-          <p>支持 Markdown 语法: <code>#</code> 标题, <code>**粗体**</code>, <code>*斜体*</code>, <code>```代码块```</code>, <code>- 列表</code></p>
         </div>
-      </Modal>
+      )}
+
+      {isCreateProblemModalOpen && (
+        <div className={styles.modalOverlay} onClick={() => setIsCreateProblemModalOpen(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3>新建题目</h3>
+            <div className={styles.formGroup}>
+              <label>题目链接</label>
+              <Input
+                placeholder="https://leetcode.com/problems/..."
+                value={newProblem.url}
+                onChange={(e) => setNewProblem({ ...newProblem, url: e.target.value })}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>题目标题</label>
+              <Input
+                placeholder="请输入题目标题"
+                value={newProblem.title}
+                onChange={(e) => setNewProblem({ ...newProblem, title: e.target.value })}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>难度</label>
+              <select 
+                value={newProblem.difficulty}
+                onChange={(e) => setNewProblem({ ...newProblem, difficulty: e.target.value })}
+              >
+                <option value="easy">简单</option>
+                <option value="medium">中等</option>
+                <option value="hard">困难</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label>分类</label>
+              <Input
+                placeholder="请输入分类名称"
+                value={newProblem.category}
+                onChange={(e) => setNewProblem({ ...newProblem, category: e.target.value })}
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button onClick={() => setIsCreateProblemModalOpen(false)}>取消</button>
+              <button onClick={handleCreateProblem}>确定</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  );
+  )
 }
