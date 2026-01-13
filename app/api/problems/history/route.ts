@@ -179,14 +179,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '未登录' }, { status: 401 })
     }
 
-    const { url, title, difficulty, category } = await request.json()
+    const { url, title, difficulty } = await request.json()
     
     if (!url || !title) {
       return NextResponse.json({ error: '缺少必要参数' }, { status: 400 })
     }
 
     // 检查题目是否已存在
-    let leetcodeProblem = await prisma.leetcodeProblem.findFirst({
+    let leetcodeProblem = await prisma.leetCodeProblem.findFirst({
       where: {
         url: url,
         OR: [
@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
 
     // 如果题目不存在，创建新题目
     if (!leetcodeProblem) {
-      leetcodeProblem = await prisma.leetcodeProblem.create({
+      leetcodeProblem = await prisma.leetCodeProblem.create({
         data: {
           slug: `custom-${Date.now()}`,
           title: title,
@@ -206,7 +206,7 @@ export async function POST(request: NextRequest) {
           difficulty: difficulty || 'medium',
           url: url,
           tags: [],
-          category: category || '未分类',
+          category: '未分类',
           isPublic: false,
           createdBy: session.user.id,
           notes: ''
@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
           completed: false,
           notes: '',
           timeSpent: 0,
-          category: category || '未分类'
+          category: '未分类'
         },
         include: {
           leetcodeProblem: true
@@ -248,9 +248,13 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('创建题目笔记失败:', error)
+    // 提供更详细的错误信息
+    const errorMessage = error instanceof Error ? error.message : '创建失败'
+    console.error('详细错误信息:', JSON.stringify(error, null, 2))
     return NextResponse.json({
       success: false,
-      error: '创建失败'
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error : undefined
     }, { status: 500 })
   }
 }

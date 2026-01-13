@@ -11,6 +11,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '未登录' }, { status: 401 })
     }
 
+    // 检查 prisma 是否有 userCategory 属性
+    if (!prisma.userCategory) {
+      console.error('Prisma client does not have userCategory model')
+      return NextResponse.json({
+        success: false,
+        error: '分类功能不可用，请检查数据库配置'
+      }, { status: 500 })
+    }
+
     const categories = await prisma.userCategory.findMany({
       where: {
         userId: session.user.id

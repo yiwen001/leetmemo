@@ -187,7 +187,12 @@ export default function ProblemsPage() {
       problems: categoryProblemsMap.get(cat.name) || []
     }))
     
-    setCategories(categoryList)
+    // 只有当 categoryList 与当前 categories 不同时才更新状态，避免无限循环
+    setCategories(prev => {
+      const isSame = prev.length === categoryList.length && 
+        prev.every((cat, index) => cat.id === categoryList[index].id && cat.count === categoryList[index].count)
+      return isSame ? prev : categoryList
+    })
   }
 
   useEffect(() => {
@@ -291,7 +296,14 @@ export default function ProblemsPage() {
         message.success('分类创建成功')
         setIsCreateCategoryModalOpen(false)
         setNewCategoryName('')
-        fetchCategories()
+        // 直接更新 categories 状态，确保包含 count 和 problems 属性
+        const newCategory = data.category
+        const newCategoryWithStats = { 
+          ...newCategory, 
+          count: 0, 
+          problems: [] 
+        }
+        setCategories(prev => [...prev, newCategoryWithStats])
       } else {
         message.error(data.error || '创建失败')
       }
@@ -443,18 +455,17 @@ export default function ProblemsPage() {
       return
     }
     
-    if (!newProblem.category.trim()) {
-      message.error('请选择或输入分类')
-      return
-    }
-    
     try {
       const response = await fetch('/api/problems/history', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(newProblem)
+        body: JSON.stringify({
+          url: newProblem.url,
+          title: newProblem.title,
+          difficulty: newProblem.difficulty
+        })
       })
       
       const data = await response.json()
@@ -466,7 +477,7 @@ export default function ProblemsPage() {
           url: '',
           title: '',
           difficulty: 'medium',
-          category: ''
+          category: '未分类'
         })
         fetchProblems()
         fetchCategories()
@@ -927,14 +938,6 @@ export default function ProblemsPage() {
                 <option value="medium">中等</option>
                 <option value="hard">困难</option>
               </select>
-            </div>
-            <div className={styles.formGroup}>
-              <label>分类</label>
-              <Input
-                placeholder="请输入分类名称"
-                value={newProblem.category}
-                onChange={(e) => setNewProblem({ ...newProblem, category: e.target.value })}
-              />
             </div>
             <div className={styles.modalActions}>
               <button onClick={() => setIsCreateProblemModalOpen(false)}>取消</button>
