@@ -25,10 +25,23 @@ model User {
   studyRecords StudyRecord[]
   studyPlans StudyPlan[]
   createdProblems LeetCodeProblem[] @relation("CreatedProblems")
+  userCategories UserCategory[]
 
   @@map("users")
 }
 
+model UserCategory {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // 关联
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@map("user_categories")
+}
 
 model StudyRecord {
   id          String    @id @default(cuid())
@@ -44,6 +57,7 @@ model StudyRecord {
   notes       String?   @default("")
   lastReviewDate DateTime? @map("last_review_date")
   firstStudyDate DateTime @default(now()) @map("first_study_date") // 首次学习日期
+  category    String?   @default("未分类") // 用户自定义分类
   
   // 关联
   user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
