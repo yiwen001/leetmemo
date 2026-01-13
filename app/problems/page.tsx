@@ -23,6 +23,7 @@ interface Problem {
   completed: boolean
   timeSpent: number
   category: string
+  categoryId: string | null
   studyPlan?: {
     id: string
     startDate: string
@@ -66,6 +67,20 @@ export default function ProblemsPage() {
   
   const [categories, setCategories] = useState<Category[]>([])
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['all']))
+  
+  // 右键菜单相关状态
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean
+    x: number
+    y: number
+    problem: Problem | null
+  }>({ visible: false, x: 0, y: 0, problem: null })
+  
+  // 重命名分类相关状态
+  const [renamingCategory, setRenamingCategory] = useState<{
+    id: string
+    name: string
+  } | null>(null)
 
   const editorRef = useState<HTMLTextAreaElement | null>(null)
   const [splitPosition, setSplitPosition] = useState(50)
@@ -173,18 +188,18 @@ export default function ProblemsPage() {
     const categoryProblemsMap = new Map<string, Problem[]>()
     
     problems.forEach(problem => {
-      const category = problem.category || '未分类'
-      if (!categoryProblemsMap.has(category)) {
-        categoryProblemsMap.set(category, [])
+      const categoryId = problem.categoryId
+      if (!categoryProblemsMap.has(categoryId || '未分类')) {
+        categoryProblemsMap.set(categoryId || '未分类', [])
       }
-      categoryProblemsMap.get(category)!.push(problem)
+      categoryProblemsMap.get(categoryId || '未分类')!.push(problem)
     })
     
     const categoryList: Category[] = userCategories.map(cat => ({
       id: cat.id,
       name: cat.name,
-      count: categoryProblemsMap.get(cat.name)?.length || 0,
-      problems: categoryProblemsMap.get(cat.name) || []
+      count: categoryProblemsMap.get(cat.id)?.length || 0,
+      problems: categoryProblemsMap.get(cat.id) || []
     }))
     
     // 只有当 categoryList 与当前 categories 不同时才更新状态，避免无限循环
@@ -316,7 +331,7 @@ export default function ProblemsPage() {
   const handleDeleteCategory = async (categoryId: string, categoryName: string) => {
     if (confirm(`确定要删除分类"${categoryName}"吗？该分类下的题目将移动到"未分类"。`)) {
       try {
-        const problemsToUpdate = problems.filter(p => p.category === categoryName)
+        const problemsToUpdate = problems.filter(p => p.categoryId === categoryId)
         const updatePromises = problemsToUpdate.map(problem => 
           fetch('/api/problems/history', {
             method: 'PUT',
@@ -325,7 +340,7 @@ export default function ProblemsPage() {
             },
             body: JSON.stringify({
               recordId: problem.id,
-              category: '未分类'
+              categoryId: null
             })
           })
         )
@@ -381,6 +396,111 @@ export default function ProblemsPage() {
       message.error('删除失败')
     }
   }
+  
+  // 右键菜单处理函数
+  const handleContextMenu = (e: React.MouseEvent, problem: Problem) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      problem
+    })
+  }
+  
+  const handleCloseContextMenu = () => {
+    setContextMenu({
+      visible: false,
+      x: 0,
+      y: 0,
+      problem: null
+    })
+  }
+  
+  const handleMoveToCategory = async (categoryId: string | null, categoryName: string) => {
+    if (!contextMenu.problem) return
+    
+    try {
+      const response = await fetch('/api/problems/history', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          recordId: contextMenu.problem.id,
+          categoryId: categoryId
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        message.success(`已移动到"${categoryName}"`)
+        handleCloseContextMenu()
+        fetchProblems()
+        fetchCategories()
+      } else {
+        message.error(data.error || '移动失败')
+      }
+    } catch (error) {
+      console.error('移动题目失败:', error)
+      message.error('移动失败')
+    }
+  }
+  
+  // 重命名分类处理函数
+  const handleStartRenameCategory = (categoryId: string, categoryName: string) => {
+    setRenamingCategory({ id: categoryId, name: categoryName })
+  }
+  
+  const handleRenameCategory = async () => {
+    if (!renamingCategory?.name.trim()) {
+      message.error('分类名称不能为空')
+      return
+    }
+    
+    // 检查是否已存在同名分类
+    const existingCategory = categories.find(
+      c => c.name === renamingCategory.name.trim() && c.id !== renamingCategory.id
+    )
+    
+    if (existingCategory) {
+      message.error('该分类名称已存在')
+      return
+    }
+    
+    try {
+      const response = await fetch(`/api/categories/${renamingCategory.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: renamingCategory.name.trim()
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        message.success('分类重命名成功')
+        setRenamingCategory(null)
+        fetchCategories()
+        fetchProblems()
+      } else {
+        message.error(data.error || '重命名失败')
+      }
+    } catch (error) {
+      console.error('重命名分类失败:', error)
+      message.error('重命名失败')
+    }
+  }
+  
+  const handleCancelRenameCategory = () => {
+    setRenamingCategory(null)
+  }
 
   const handleDragStart = (problem: Problem) => {
     setDraggedProblem(problem)
@@ -412,6 +532,7 @@ export default function ProblemsPage() {
       return
     }
 
+    const targetCategoryId = categoryId === 'all' ? null : categoryId
     const categoryName = categoryId === 'all' ? '未分类' : categories.find(c => c.id === categoryId)?.name || '未分类'
     
     try {
@@ -422,7 +543,7 @@ export default function ProblemsPage() {
         },
         body: JSON.stringify({
           recordId: draggedProblem.id,
-          category: categoryName
+          categoryId: targetCategoryId
         })
       })
       
@@ -567,6 +688,7 @@ export default function ProblemsPage() {
                     draggable
                     onDragStart={() => handleDragStart(problem)}
                     onDragEnd={handleDragEnd}
+                    onContextMenu={(e) => handleContextMenu(e, problem)}
                   >
                     <div className={styles.problemHeader}>
                       <span className={styles.problemNumber}>#{problem.number}</span>
@@ -617,8 +739,43 @@ export default function ProblemsPage() {
                   >
                     <ChevronRight size={12} className={styles.chevron} />
                     <Folder size={14} />
-                    <span>{category.name}</span>
-                    <span className={styles.count}>{category.count}</span>
+                    {renamingCategory?.id === category.id ? (
+                      <div className={styles.renameCategoryInputWrapper}>
+                        <Input
+                          value={renamingCategory.name}
+                          onChange={(e) => setRenamingCategory({ ...renamingCategory, name: e.target.value })}
+                          onPressEnter={handleRenameCategory}
+                          onBlur={handleRenameCategory}
+                          autoFocus
+                          size="small"
+                          className={styles.renameCategoryInput}
+                        />
+                        <button 
+                          className={styles.renameConfirmButton}
+                          onClick={handleRenameCategory}
+                          title="确认重命名"
+                        >
+                          ✔
+                        </button>
+                        <button 
+                          className={styles.renameCancelButton}
+                          onClick={handleCancelRenameCategory}
+                          title="取消重命名"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <span 
+                          className={styles.categoryName}
+                          onDoubleClick={() => handleStartRenameCategory(category.id, category.name)}
+                        >
+                          {category.name}
+                        </span>
+                        <span className={styles.count}>{category.count}</span>
+                      </>
+                    )}
                   </div>
                   <button 
                     className={styles.deleteButton}
@@ -641,6 +798,7 @@ export default function ProblemsPage() {
                         draggable
                         onDragStart={() => handleDragStart(problem)}
                         onDragEnd={handleDragEnd}
+                        onContextMenu={(e) => handleContextMenu(e, problem)}
                       >
                         <div className={styles.problemHeader}>
                           <span className={styles.problemNumber}>#{problem.number}</span>
@@ -944,6 +1102,38 @@ export default function ProblemsPage() {
               <button onClick={handleCreateProblem}>确定</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 右键菜单 */}
+      {contextMenu.visible && contextMenu.problem && (
+        <div 
+          className={styles.contextMenu}
+          style={{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }}
+          onClick={handleCloseContextMenu}
+        >
+          <div className={styles.contextMenuTitle}>
+            <span className={styles.contextMenuProblemTitle}>{contextMenu.problem.title}</span>
+          </div>
+          <div className={styles.contextMenuDivider}></div>
+          <div className={styles.contextMenuSectionTitle}>移动到分类</div>
+          <div 
+            className={styles.contextMenuItem}
+            onClick={() => handleMoveToCategory(null, '未分类')}
+          >
+            <Folder size={12} />
+            <span>未分类</span>
+          </div>
+          {categories.map(category => (
+            <div 
+              key={category.id}
+              className={styles.contextMenuItem}
+              onClick={() => handleMoveToCategory(category.id, category.name)}
+            >
+              <Folder size={12} />
+              <span>{category.name}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -83,7 +83,8 @@ export async function GET(request: NextRequest) {
     const studyRecords = await prisma.studyRecord.findMany({
       where: whereClause,
       include: {
-        leetcodeProblem: true
+        leetcodeProblem: true,
+        userCategory: true
       },
       orderBy
       // 移除skip和take参数，显示所有结果
@@ -107,7 +108,8 @@ export async function GET(request: NextRequest) {
       difficulty: record.leetcodeProblem.difficulty,
       completed: record.completed,
       timeSpent: record.timeSpent,
-      category: record.category || '未分类'
+      categoryId: record.categoryId,
+      category: record.userCategory?.name || '未分类'
     }))
 
     return NextResponse.json({
@@ -233,7 +235,7 @@ export async function POST(request: NextRequest) {
           completed: false,
           notes: '',
           timeSpent: 0,
-          category: '未分类'
+          categoryId: null // 使用 categoryId 代替 category
         },
         include: {
           leetcodeProblem: true
@@ -268,9 +270,9 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: '未登录' }, { status: 401 })
     }
 
-    const { recordId, category } = await request.json()
+    const { recordId, categoryId } = await request.json()
     
-    if (!recordId || !category) {
+    if (!recordId) {
       return NextResponse.json({ error: '缺少必要参数' }, { status: 400 })
     }
 
@@ -290,10 +292,11 @@ export async function PUT(request: NextRequest) {
         id: recordId
       },
       data: {
-        category: category
+        categoryId: categoryId
       },
       include: {
-        leetcodeProblem: true
+        leetcodeProblem: true,
+        userCategory: true
       }
     })
 

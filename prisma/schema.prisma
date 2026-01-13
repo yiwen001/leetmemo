@@ -31,13 +31,14 @@ model User {
 }
 
 model UserCategory {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
+  id        String        @id @default(cuid())
+  userId    String        @map("user_id")
   name      String
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime      @default(now()) @map("created_at")
 
   // 关联
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studyRecords  StudyRecord[]
 
   @@unique([userId, name])
   @@map("user_categories")
@@ -57,12 +58,13 @@ model StudyRecord {
   notes       String?   @default("")
   lastReviewDate DateTime? @map("last_review_date")
   firstStudyDate DateTime @default(now()) @map("first_study_date") // 首次学习日期
-  category    String?   @default("未分类") // 用户自定义分类
+  categoryId  String?   @map("category_id") // 用户自定义分类ID
   
   // 关联
   user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   leetcodeProblem LeetCodeProblem @relation(fields: [problemId], references: [id], onDelete: Cascade)
   studyPlan       StudyPlan?   @relation(fields: [studyPlanId], references: [id], onDelete: SetNull)
+  userCategory    UserCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@unique([userId, problemId]) // 确保每个用户每道题只有一条记录
   @@map("study_records")
