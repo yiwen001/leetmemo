@@ -8,6 +8,9 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "LeetMemo - LeetCode复习系统",
   description: "使用艾宾浩斯遗忘曲线复习LeetCode题目",
+  icons: {
+    icon: "/lemon3.svg",
+  },
 };
 
 export default function RootLayout({

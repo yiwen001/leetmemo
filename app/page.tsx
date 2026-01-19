@@ -510,7 +510,7 @@ export default function HomePage() {
       {/* 导航栏 */}
       <nav className={styles.navbar}>
         <div className={styles.navContent}>
-          <h1 className={styles.logo}>📚 LeetMemo</h1>
+          <h1 className={styles.logo}><img src="/lemon4.svg" style={{ width: 28, height: 28, marginRight: 8, verticalAlign: 'middle' }} /> LeetMemo</h1>
           <div className={styles.navRight}>
             <button 
               className={styles.addButton}

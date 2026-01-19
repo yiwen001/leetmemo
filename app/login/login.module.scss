@@ -1,259 +1,201 @@
 .container {
   display: flex;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  
+  // 真实的网格本背景 - 颜色调淡，更像纸张
+  background-color: #f9fafb; // 极淡的灰白底色，不刺眼
+  background-image: 
+    linear-gradient(#e5e7eb 1px, transparent 1px),
+    linear-gradient(90deg, #e5e7eb 1px, transparent 1px);
+  background-size: 32px 32px; // 格子稍微大一点，更舒展
+  
+  position: relative;
+  overflow: hidden;
+  align-items: center; // 垂直居中
+  justify-content: center; // 水平居中
 }
 
-.leftPanel {
-  flex: 1;
-  position: relative;
+// 涂鸦浮动效果 - 更轻盈
+@keyframes doodleFloat {
+  0% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-6px) rotate(2deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+// 居中的登录卡片 - 模拟一张便利贴或便签纸
+.loginBox {
+  width: 100%;
+  max-width: 420px; // 稍微窄一点，更精致
+  padding: 48px 32px;
+  background: #ffffff; 
+  
+  // 手绘感边框 - 不规则圆角
+  border: 2px solid #4F46E5;
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  
+  // 阴影 - 稍微拉远一点，增加悬浮感
+  box-shadow: 8px 8px 0px #4e46e567;; // 半透明柠檬黄阴影
+  
+  z-index: 10;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
+  flex-direction: column;
+  align-items: center; // 内容居中
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 12px 12px 0px rgba(71, 114, 253, 0.6);;
+  }
 
   .decoration {
-    z-index: 2;
     text-align: center;
-    color: white;
+    color: #374151;
+    margin-bottom: 32px;
+    width: 100%;
 
     .logo {
       display: flex;
+      flex-direction: row; 
       align-items: center;
       justify-content: center;
       gap: 16px;
-      margin-bottom: 32px;
+      margin-bottom: 20px;
+
+      // 柠檬图标
+      .lemonIcon {
+        // 动画
+        filter: drop-shadow(2px 2px 0px rgba(0,0,0,0.1));
+        animation: doodleFloat 4s ease-in-out infinite;
+      }
 
       h1 {
-        font-size: 3rem;
-        font-weight: 700;
+        font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif;
+        font-size: 2.5rem; // 稍微收敛一点
+        font-weight: 800;
         margin: 0;
+        color: #1f2937;
+        letter-spacing: -0.5px;
+        position: relative;
+        line-height: 1;
+        
+        // 下划线装饰 - 改为马克笔涂抹效果
+        &::after {
+          content: '';
+          position: absolute;
+          bottom: 4px;
+          left: -5%;
+          width: 110%;
+          height: 14px;
+          background: #4e46e5a1;;
+          z-index: -1;
+          opacity: 0.5;
+          transform: rotate(-2deg);
+          border-radius: 20px;
+        }
       }
     }
 
     .tagline {
-      font-size: 1.5rem;
-      line-height: 1.6;
-      margin-bottom: 48px;
-      opacity: 0.9;
+      font-size: 1rem;
+      margin-bottom: 32px;
+      color: #6b7280;
+      font-weight: 500;
+      font-family: 'Comic Sans MS', sans-serif;
+      letter-spacing: 1px;
+      position: relative;
+      display: inline-block;
+      
+      // 两侧加小装饰
+      &::before, &::after {
+        content: '~';
+        margin: 0 8px;
+        color: #4F46E5;;
+        font-weight: bold;
+      }
     }
 
     .features {
       display: flex;
-      flex-direction: column;
-      gap: 20px;
-      align-items: center;
-
+      flex-direction: column; // 竖排
+      align-items: flex-start; // 左对齐，像清单一样
+      gap: 12px;
+      padding-left: 20px; // 整体左移一点
+      
       .feature {
         display: flex;
         align-items: center;
         gap: 12px;
-        font-size: 1.1rem;
-        opacity: 0.8;
-      }
-    }
-  }
+        font-size: 1.05rem;
+        color: #4b5563;
+        padding: 0;
+        background: transparent; 
+        border: none; 
+        font-family: 'Comic Sans MS', sans-serif; 
 
-  // 装饰圆圈
-  .circle1, .circle2, .circle3 {
-    position: absolute;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-  }
+        // 模拟 Checkbox
+        &::before {
+          content: '';
+          display: block;
+          width: 16px;
+          height: 16px;
+          border: 2px solid #4F46E5;
+          border-radius: 4px;
+          margin-right: 4px;
+        }
 
-  .circle1 {
-    width: 300px;
-    height: 300px;
-    top: -150px;
-    left: -150px;
-  }
-
-  .circle2 {
-    width: 200px;
-    height: 200px;
-    bottom: -100px;
-    right: -100px;
-  }
-
-  .circle3 {
-    width: 150px;
-    height: 150px;
-    top: 50%;
-    right: -75px;
-  }
-}
-
-.rightPanel {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-  background: white;
-}
-
-.loginBox {
-  width: 100%;
-  max-width: 400px;
-
-  .loginHeader {
-    text-align: center;
-    margin-bottom: 40px;
-
-    h2 {
-      font-size: 2rem;
-      font-weight: 600;
-      color: #1a1a1a;
-      margin-bottom: 8px;
-    }
-
-    p {
-      color: #666;
-      font-size: 1rem;
-    }
-  }
-
-  .loginContent {
-    margin-bottom: 32px;
-
-    .githubButton {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      padding: 16px 24px;
-      background: #24292e;
-      color: white;
-      border: none;
-      border-radius: 12px;
-      font-size: 1rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-      margin-bottom: 24px;
-
-      &:hover:not(:disabled) {
-        background: #1a1e22;
-        transform: translateY(-1px);
-      }
-
-      &:disabled {
-        opacity: 0.7;
-        cursor: not-allowed;
-      }
-
-      .arrow {
-        margin-left: auto;
-        transition: transform 0.2s;
-      }
-
-      &:hover:not(:disabled) .arrow {
-        transform: translateX(4px);
-      }
-    }
-
-    .divider {
-      display: flex;
-      align-items: center;
-      margin: 24px 0;
-      
-      &::before,
-      &::after {
-        content: '';
-        flex: 1;
-        height: 1px;
-        background: #e5e5e5;
-      }
-
-      span {
-        padding: 0 16px;
-        color: #888;
-        font-size: 0.9rem;
-      }
-    }
-
-    .guestButton {
-      width: 100%;
-      padding: 12px;
-      background: transparent;
-      color: #667eea;
-      border: 2px dashed #667eea;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      cursor: pointer;
-      transition: all 0.2s;
-
-      &:hover {
-        background: #667eea;
-        color: white;
-      }
-    }
-  }
-
-  .loginFooter {
-    text-align: center;
-    
-    .description {
-      color: #666;
-      font-size: 0.9rem;
-      margin-bottom: 16px;
-    }
-
-    .terms {
-      font-size: 0.8rem;
-      color: #888;
-      line-height: 1.5;
-
-      a {
-        color: #667eea;
-        text-decoration: none;
-
+        // 图标颜色
+        svg {
+          display: none; // 隐藏原有图标，用 checkbox 代替更像笔记
+        }
+        
         &:hover {
-          text-decoration: underline;
+          transform: translateX(4px);
+          color: #1f2937;
+          transition: all 0.2s;
+          
+          // hover 时打钩
+          &::before {
+            background-color: #4F46E5;;
+            box-shadow: inset 2px 2px 0 rgba(0,0,0,0.1);
+          }
         }
       }
     }
   }
+
+  .loginContent {
+    width: 100%;
+    max-width: 280px; // 按钮也精致一点
+  }
 }
+
 .giteeButton {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 16px;
   padding: 16px 24px;
-  background: #6975DD;
-  color: rgba(255, 255, 255, 1);
-  border: none;
+  
+  // 简笔画风格按钮
+  background: #4F46E5;
+  color: #ffffff;
+  border: 2px solid #4F46E5;
   border-radius: 12px;
-  font-size: 1rem;
-  font-weight: 500;
+  font-size: 1.1rem;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
-  margin-bottom: 16px;
-}
+  box-shadow: 4px 4px 0px #4F46E5;
 
-// 响应式设计
-@media (max-width: 768px) {
-  .container {
-    flex-direction: column;
+  &:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px #4F46E5;
+    background: #4F46E5;
   }
-
-  .leftPanel {
-    min-height: 40vh;
-    
-    .decoration .logo h1 {
-      font-size: 2rem;
-    }
-    
-    .decoration .tagline {
-      font-size: 1.2rem;
-    }
-  }
-
-  .rightPanel {
-    padding: 20px;
+  
+  &:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px #4F46E5;
   }
 }
