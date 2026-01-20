@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ArrowLeft, Trash2, Search, FileText, Calendar, RefreshCw, Loader, BookOpen, Plus, Folder, X, Bold, Italic, Code, Link as LinkIcon, List, Quote, Image, Type, Minus, ChevronRight, Hash } from 'lucide-react'
 import Link from 'next/link'
 import { Input, message, Popconfirm, Empty } from 'antd'
@@ -82,7 +82,7 @@ export default function ProblemsPage() {
     name: string
   } | null>(null)
 
-  const editorRef = useState<HTMLTextAreaElement | null>(null)
+  const editorRef = useRef<HTMLTextAreaElement | null>(null)
   const [splitPosition, setSplitPosition] = useState(50)
   const [isDragging, setIsDragging] = useState(false)
   const [draggedProblem, setDraggedProblem] = useState<Problem | null>(null)
@@ -125,21 +125,23 @@ export default function ProblemsPage() {
   }, [isDragging])
 
   const insertMarkdown = (before: string, after: string = '') => {
-    const textarea = document.querySelector(`.${styles.editor}`) as HTMLTextAreaElement
+    const textarea = editorRef.current
     if (!textarea) return
-
     const start = textarea.selectionStart
     const end = textarea.selectionEnd
     const text = editingNotes
     const selectedText = text.substring(start, end)
-    
+    const prevScrollTop = textarea.scrollTop
     const newText = text.substring(0, start) + before + selectedText + after + text.substring(end)
     setEditingNotes(newText)
-    
-    setTimeout(() => {
-      textarea.focus()
-      textarea.setSelectionRange(start + before.length, start + before.length + selectedText.length)
-    }, 0)
+    requestAnimationFrame(() => {
+      const t = editorRef.current
+      if (!t) return
+      t.focus()
+      const anchor = start + before.length
+      t.setSelectionRange(anchor, anchor + selectedText.length)
+      t.scrollTop = prevScrollTop
+    })
   }
 
   const fetchProblems = async () => {
@@ -998,6 +1000,7 @@ export default function ProblemsPage() {
                     </button>
                   </div>
                   <textarea
+                    ref={editorRef}
                     value={editingNotes}
                     onChange={(e) => handleNotesChange(e.target.value)}
                     placeholder="开始编写你的笔记..."
